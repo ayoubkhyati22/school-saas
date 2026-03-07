@@ -99,7 +99,8 @@ export default function DataTable<T>({
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
@@ -141,6 +142,53 @@ export default function DataTable<T>({
               </tbody>
             </table>
           </div>
+
+          {/* Mobile card list */}
+          <div className="sm:hidden divide-y divide-border">
+            {paginated.map((item) => {
+              const actionCol = columns.find((c) => !c.label);
+              const dataCols = columns.filter((c) => c.label);
+              return (
+                <div
+                  key={keyExtractor(item)}
+                  onClick={() => onRowClick?.(item)}
+                  className={cn(
+                    'px-4 py-4 flex flex-col gap-2',
+                    onRowClick && 'cursor-pointer active:bg-muted/50'
+                  )}
+                >
+                  {/* First column rendered prominently */}
+                  {dataCols[0] && (
+                    <div>
+                      {dataCols[0].render
+                        ? dataCols[0].render(item)
+                        : <span className="font-medium text-foreground text-sm">{String((item as any)[dataCols[0].key] ?? '')}</span>}
+                    </div>
+                  )}
+                  {/* Remaining columns as label: value rows */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {dataCols.slice(1).map((column) => (
+                      <div key={column.key} className="flex flex-col gap-0.5">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{column.label}</span>
+                        <div className="text-sm text-foreground">
+                          {column.render
+                            ? column.render(item)
+                            : String((item as any)[column.key] ?? '')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Actions row */}
+                  {actionCol && (
+                    <div className="flex justify-end pt-1">
+                      {actionCol.render ? actionCol.render(item) : null}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
           {totalPages > 1 && (
             <Pagination
               currentPage={currentPage}

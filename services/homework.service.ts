@@ -99,6 +99,33 @@ export async function submitHomework(submissionData: {
   return data;
 }
 
+export async function updateHomework(homeworkId: string, updates: Partial<{
+  title: string;
+  description: string;
+  due_date: string;
+  class_id: string;
+  subject_id: string;
+}>) {
+  const { data, error } = await supabase
+    .from('homework')
+    .update(updates)
+    .eq('id', homeworkId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteHomework(homeworkId: string) {
+  const { error } = await supabase
+    .from('homework')
+    .delete()
+    .eq('id', homeworkId);
+
+  if (error) throw error;
+}
+
 export async function gradeSubmission(
   submissionId: string,
   grade: number,

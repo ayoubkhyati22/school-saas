@@ -70,3 +70,29 @@ export async function toggleCoursePublish(courseId: string, isPublished: boolean
   if (error) throw error;
   return data;
 }
+
+export async function updateCourse(courseId: string, updates: Partial<{
+  title: string;
+  class_id: string;
+  subject_id: string;
+  is_published: boolean;
+}>) {
+  const { data, error } = await supabase
+    .from('courses_pdf')
+    .update(updates)
+    .eq('id', courseId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteCourse(courseId: string) {
+  const { error } = await supabase
+    .from('courses_pdf')
+    .delete()
+    .eq('id', courseId);
+
+  if (error) throw error;
+}

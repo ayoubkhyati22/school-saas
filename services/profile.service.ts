@@ -58,3 +58,28 @@ export async function getParents(schoolId: string) {
   if (error) throw error;
   return data;
 }
+
+export async function updateProfile(profileId: string, updates: Partial<{
+  full_name: string;
+  phone_number: string;
+  email: string;
+}>) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', profileId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteProfile(profileId: string) {
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', profileId);
+
+  if (error) throw error;
+}

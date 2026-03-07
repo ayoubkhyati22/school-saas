@@ -48,3 +48,34 @@ export async function uploadPhoto(albumId: string, file: File) {
   if (photoError) throw photoError;
   return photoData;
 }
+
+export async function updateAlbum(albumId: string, updates: Partial<{ title: string }>) {
+  const { data, error } = await supabase
+    .from('gallery_albums')
+    .update(updates)
+    .eq('id', albumId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteAlbum(albumId: string) {
+  const { error } = await supabase
+    .from('gallery_albums')
+    .delete()
+    .eq('id', albumId);
+  if (error) throw error;
+}
+
+export async function deletePhoto(photoId: string) {
+  const { error } = await supabase
+    .from('gallery_photos')
+    .delete()
+    .eq('id', photoId);
+  if (error) throw error;
+}
+
+export function getPhotoUrl(path: string): string {
+  return supabase.storage.from('school-content').getPublicUrl(path).data?.publicUrl || '';
+}

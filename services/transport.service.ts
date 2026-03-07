@@ -41,3 +41,11 @@ export async function updateTransportRoute(routeId: string, updates: Partial<{
   if (error) throw error;
   return data;
 }
+
+export async function deleteTransportRoute(routeId: string) {
+  const { error } = await supabase
+    .from('transport_routes')
+    .delete()
+    .eq('id', routeId);
+  if (error) throw error;
+}

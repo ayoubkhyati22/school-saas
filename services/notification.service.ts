@@ -40,3 +40,12 @@ export async function createNotification(notificationData: {
   if (error) throw error;
   return data;
 }
+
+export async function deleteNotification(notificationId: string) {
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', notificationId);
+
+  if (error) throw error;
+}

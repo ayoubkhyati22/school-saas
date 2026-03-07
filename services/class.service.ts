@@ -61,3 +61,28 @@ export async function createClass(classData: {
   if (error) throw error;
   return data;
 }
+
+export async function updateClass(classId: string, updates: Partial<{
+  name: string;
+  academic_year: string;
+  ref_level_id: string;
+}>) {
+  const { data, error } = await supabase
+    .from('classes')
+    .update(updates)
+    .eq('id', classId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteClass(classId: string) {
+  const { error } = await supabase
+    .from('classes')
+    .delete()
+    .eq('id', classId);
+
+  if (error) throw error;
+}

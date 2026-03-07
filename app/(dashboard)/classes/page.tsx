@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentProfile } from '@/lib/auth';
-import { getClasses, createClass } from '@/services/class.service';
+import { getClasses, createClass, updateClass, deleteClass } from '@/services/class.service';
 import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
@@ -11,7 +11,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
-import { Plus, Users, School } from 'lucide-react';
+import { Plus, Users, School, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function ClassesPage() {
@@ -19,19 +19,17 @@ export default function ClassesPage() {
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [deleteItem, setDeleteItem] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [levels, setLevels] = useState<any[]>([]);
-  const [form, setForm] = useState({
-    name: '',
-    academic_year: '',
-    ref_level_id: '',
-  });
+  const [form, setForm] = useState({ name: '', academic_year: '', ref_level_id: '' });
 
   useEffect(() => {
     async function loadData() {
       const profileData = await getCurrentProfile();
       setProfile(profileData);
-
       if (profileData?.school_id) {
         try {
           const [classesData, levelsData] = await Promise.all([
@@ -51,26 +49,49 @@ export default function ClassesPage() {
 
   if (loading || !profile) return <LoadingPage />;
 
-  const canCreate = profile.role === 'school_admin';
+  const canManage = profile.role === 'school_admin';
+
+  const openCreate = () => {
+    setEditItem(null);
+    setForm({ name: '', academic_year: '', ref_level_id: '' });
+    setShowModal(true);
+  };
+
+  const openEdit = (cls: any) => {
+    setEditItem(cls);
+    setForm({ name: cls.name, academic_year: cls.academic_year || '', ref_level_id: cls.ref_level_id || '' });
+    setShowModal(true);
+  };
 
   const handleSubmit = async () => {
     if (!profile.school_id || !form.name || !form.academic_year || !form.ref_level_id) return;
     setSaving(true);
     try {
-      await createClass({
-        school_id: profile.school_id,
-        name: form.name,
-        academic_year: form.academic_year,
-        ref_level_id: form.ref_level_id,
-      });
+      if (editItem) {
+        await updateClass(editItem.id, { name: form.name, academic_year: form.academic_year, ref_level_id: form.ref_level_id });
+      } else {
+        await createClass({ school_id: profile.school_id, name: form.name, academic_year: form.academic_year, ref_level_id: form.ref_level_id });
+      }
       const updated = await getClasses(profile.school_id);
       setClasses(updated || []);
       setShowModal(false);
       setForm({ name: '', academic_year: '', ref_level_id: '' });
     } catch (e) {
-      // handle error
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteItem) return;
+    setDeleting(true);
+    try {
+      await deleteClass(deleteItem.id);
+      setClasses((prev) => prev.filter((c) => c.id !== deleteItem.id));
+      setDeleteItem(null);
+    } catch (e) {
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -92,9 +113,7 @@ export default function ClassesPage() {
     {
       key: 'academic_year',
       label: 'Academic Year',
-      render: (cls: any) => (
-        <span className="text-sm text-foreground">{cls.academic_year || '—'}</span>
-      ),
+      render: (cls: any) => <span className="text-sm text-foreground">{cls.academic_year || '—'}</span>,
     },
     {
       key: 'students',
@@ -106,6 +125,20 @@ export default function ClassesPage() {
         </div>
       ),
     },
+    ...(canManage ? [{
+      key: 'actions',
+      label: '',
+      render: (cls: any) => (
+        <div className="flex items-center gap-1 justify-end">
+          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(cls); }}>
+            <Pencil size={13} />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDeleteItem(cls); }}>
+            <Trash2 size={13} className="text-red-500" />
+          </Button>
+        </div>
+      ),
+    }] : []),
   ];
 
   return (
@@ -114,8 +147,8 @@ export default function ClassesPage() {
         title="Classes"
         description="Manage your school's classes and levels"
         action={
-          canCreate ? (
-            <Button onClick={() => setShowModal(true)}>
+          canManage ? (
+            <Button onClick={openCreate}>
               <Plus size={15} className="mr-2" />
               Add Class
             </Button>
@@ -136,12 +169,12 @@ export default function ClassesPage() {
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title="Add Class"
-        description="Create a new class for this academic year"
+        title={editItem ? 'Edit Class' : 'Add Class'}
+        description={editItem ? 'Update class information' : 'Create a new class for this academic year'}
         footer={
           <>
             <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} loading={saving}>Create Class</Button>
+            <Button onClick={handleSubmit} loading={saving}>{editItem ? 'Save Changes' : 'Create Class'}</Button>
           </>
         }
       >
@@ -171,12 +204,24 @@ export default function ClassesPage() {
             placeholder="Select a level..."
             value={form.ref_level_id}
             onValueChange={(v) => setForm({ ...form, ref_level_id: v })}
-            options={levels.map((l) => ({
-              value: l.id,
-              label: `${l.cycle_name} - ${l.level_name}`,
-            }))}
+            options={levels.map((l) => ({ value: l.id, label: `${l.cycle_name} - ${l.level_name}` }))}
           />
         </div>
+      </Modal>
+
+      <Modal
+        open={!!deleteItem}
+        onClose={() => setDeleteItem(null)}
+        title="Delete Class"
+        description={`Are you sure you want to delete "${deleteItem?.name}"? This action cannot be undone.`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeleteItem(null)}>Cancel</Button>
+            <Button onClick={handleDelete} loading={deleting} className="bg-red-600 hover:bg-red-700 text-white">Delete</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">All associated data (enrollments, homework, exams) may be affected.</p>
       </Modal>
     </DashboardLayout>
   );

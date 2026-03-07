@@ -46,3 +46,27 @@ export async function updateInvoiceStatus(invoiceId: string, status: string) {
   if (error) throw error;
   return data;
 }
+
+export async function updateInvoice(invoiceId: string, updates: Partial<{
+  title: string;
+  amount: number;
+  due_date: string;
+  status: string;
+}>) {
+  const { data, error } = await supabase
+    .from('invoices')
+    .update(updates)
+    .eq('id', invoiceId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteInvoice(invoiceId: string) {
+  const { error } = await supabase
+    .from('invoices')
+    .delete()
+    .eq('id', invoiceId);
+  if (error) throw error;
+}

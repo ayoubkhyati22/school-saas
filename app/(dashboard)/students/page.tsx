@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentProfile } from '@/lib/auth';
-import { getStudents } from '@/services/profile.service';
+import { getStudents, updateProfile, deleteProfile } from '@/services/profile.service';
 import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
@@ -10,31 +10,35 @@ import DataTable from '@/components/ui/DataTable';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import Select from '@/components/ui/Select';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
-import { Plus, Mail, Phone, Users } from 'lucide-react';
+import { Plus, Mail, Phone, Users, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function StudentsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [students, setStudents] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [deleteItem, setDeleteItem] = useState<any>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    full_name: '',
-    email: '',
-    phone_number: '',
-  });
+  const [deleting, setDeleting] = useState(false);
+  const [form, setForm] = useState({ full_name: '', email: '', phone_number: '', class_id: '' });
 
   useEffect(() => {
     async function loadData() {
       const profileData = await getCurrentProfile();
       setProfile(profileData);
-
       if (profileData?.school_id) {
         try {
-          const studentsData = await getStudents(profileData.school_id);
+          const [studentsData, classesRes] = await Promise.all([
+            getStudents(profileData.school_id),
+            supabase.from('classes').select('id, name').eq('school_id', profileData.school_id).order('name'),
+          ]);
           setStudents(studentsData || []);
+          setClasses(classesRes.data || []);
         } catch (e) {
           setStudents([]);
         }
@@ -46,28 +50,62 @@ export default function StudentsPage() {
 
   if (loading || !profile) return <LoadingPage />;
 
-  const canCreate = profile.role === 'school_admin';
+  const canManage = profile.role === 'school_admin';
+
+  const openCreate = () => {
+    setEditItem(null);
+    setForm({ full_name: '', email: '', phone_number: '', class_id: '' });
+    setShowModal(true);
+  };
+
+  const openEdit = (student: any) => {
+    setEditItem(student);
+    setForm({ full_name: student.full_name, email: student.email || '', phone_number: student.phone_number || '', class_id: '' });
+    setShowModal(true);
+  };
 
   const handleSubmit = async () => {
-    if (!profile.school_id || !form.full_name || !form.email) return;
+    if (!profile.school_id || !form.full_name) return;
     setSaving(true);
     try {
-      await supabase.from('profiles').insert({
-        full_name: form.full_name,
-        email: form.email,
-        phone_number: form.phone_number,
-        school_id: profile.school_id,
-        role: 'student',
-        username: form.email.split('@')[0],
-      });
-      const updated = await getStudents(profile.school_id);
-      setStudents(updated || []);
+      if (editItem) {
+        await updateProfile(editItem.id, { full_name: form.full_name, phone_number: form.phone_number });
+        setStudents((prev) => prev.map((s) => s.id === editItem.id ? { ...s, full_name: form.full_name, phone_number: form.phone_number } : s));
+      } else {
+        if (!form.email) return;
+        await supabase.from('profiles').insert({
+          full_name: form.full_name, email: form.email,
+          phone_number: form.phone_number || null,
+          school_id: profile.school_id, role: 'student',
+          username: form.email.split('@')[0],
+        });
+        const updated = await getStudents(profile.school_id);
+        setStudents(updated || []);
+        if (form.class_id) {
+          const { data: newProfile } = await supabase.from('profiles').select('id').eq('email', form.email).single();
+          if (newProfile) {
+            await supabase.from('enrollments').insert({ student_id: newProfile.id, class_id: form.class_id });
+          }
+        }
+      }
       setShowModal(false);
-      setForm({ full_name: '', email: '', phone_number: '' });
+      setForm({ full_name: '', email: '', phone_number: '', class_id: '' });
     } catch (e) {
-      // handle error
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteItem) return;
+    setDeleting(true);
+    try {
+      await deleteProfile(deleteItem.id);
+      setStudents((prev) => prev.filter((s) => s.id !== deleteItem.id));
+      setDeleteItem(null);
+    } catch (e) {
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -81,9 +119,7 @@ export default function StudentsPage() {
             <img src={student.avatar_url} alt={student.full_name} className="w-9 h-9 object-cover" />
           ) : (
             <div className="w-9 h-9 bg-muted flex items-center justify-center flex-shrink-0">
-              <span className="text-foreground font-semibold text-sm">
-                {student.full_name?.charAt(0)?.toUpperCase()}
-              </span>
+              <span className="text-foreground font-semibold text-sm">{student.full_name?.charAt(0)?.toUpperCase()}</span>
             </div>
           )}
           <div>
@@ -102,9 +138,7 @@ export default function StudentsPage() {
             <Mail size={13} />
             <span className="text-sm text-foreground">{student.email}</span>
           </div>
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        ),
+        ) : <span className="text-muted-foreground text-sm">—</span>,
     },
     {
       key: 'phone_number',
@@ -115,15 +149,22 @@ export default function StudentsPage() {
             <Phone size={13} />
             <span className="text-sm text-foreground">{student.phone_number}</span>
           </div>
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        ),
+        ) : <span className="text-muted-foreground text-sm">—</span>,
     },
-    {
-      key: 'status',
-      label: 'Status',
-      render: () => <Badge variant="success">Active</Badge>,
-    },
+    { key: 'status', label: 'Status', render: () => <Badge variant="success">Active</Badge> },
+    ...(canManage ? [{
+      key: 'actions', label: '',
+      render: (student: any) => (
+        <div className="flex items-center gap-1 justify-end">
+          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(student); }}>
+            <Pencil size={13} />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDeleteItem(student); }}>
+            <Trash2 size={13} className="text-red-500" />
+          </Button>
+        </div>
+      ),
+    }] : []),
   ];
 
   return (
@@ -132,8 +173,8 @@ export default function StudentsPage() {
         title="Students"
         description="Manage students enrolled in your school"
         action={
-          canCreate ? (
-            <Button onClick={() => setShowModal(true)}>
+          canManage ? (
+            <Button onClick={openCreate}>
               <Plus size={15} className="mr-2" />
               Add Student
             </Button>
@@ -154,12 +195,12 @@ export default function StudentsPage() {
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title="Add Student"
-        description="Add a new student to your school"
+        title={editItem ? 'Edit Student' : 'Add Student'}
+        description={editItem ? 'Update student information' : 'Add a new student to your school'}
         footer={
           <>
             <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} loading={saving}>Add Student</Button>
+            <Button onClick={handleSubmit} loading={saving}>{editItem ? 'Save Changes' : 'Add Student'}</Button>
           </>
         }
       >
@@ -174,16 +215,18 @@ export default function StudentsPage() {
               className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">Email</label>
-            <input
-              type="email"
-              placeholder="student@school.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
+          {!editItem && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Email</label>
+              <input
+                type="email"
+                placeholder="student@school.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-foreground">Phone Number</label>
             <input
@@ -194,7 +237,31 @@ export default function StudentsPage() {
               className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
+          {!editItem && classes.length > 0 && (
+            <Select
+              label="Enroll in Class (Optional)"
+              placeholder="Select a class..."
+              value={form.class_id}
+              onValueChange={(v) => setForm({ ...form, class_id: v })}
+              options={classes.map((c) => ({ value: c.id, label: c.name }))}
+            />
+          )}
         </div>
+      </Modal>
+
+      <Modal
+        open={!!deleteItem}
+        onClose={() => setDeleteItem(null)}
+        title="Remove Student"
+        description={`Are you sure you want to remove "${deleteItem?.full_name}"? This action cannot be undone.`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeleteItem(null)}>Cancel</Button>
+            <Button onClick={handleDelete} loading={deleting} className="bg-red-600 hover:bg-red-700 text-white">Remove</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">The student's submissions and results will also be affected.</p>
       </Modal>
     </DashboardLayout>
   );

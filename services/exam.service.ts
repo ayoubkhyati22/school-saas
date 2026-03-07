@@ -85,6 +85,35 @@ export async function recordExamResult(resultData: {
   return data;
 }
 
+export async function updateExam(examId: string, updates: Partial<{
+  title: string;
+  exam_date: string;
+  max_score: number;
+  coefficient: number;
+  term: string;
+  class_id: string;
+  subject_id: string;
+}>) {
+  const { data, error } = await supabase
+    .from('exams')
+    .update(updates)
+    .eq('id', examId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteExam(examId: string) {
+  const { error } = await supabase
+    .from('exams')
+    .delete()
+    .eq('id', examId);
+
+  if (error) throw error;
+}
+
 export async function getStudentExamResults(studentId: string) {
   const { data, error } = await supabase
     .from('exam_results')

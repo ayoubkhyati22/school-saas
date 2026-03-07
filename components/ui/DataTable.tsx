@@ -2,7 +2,7 @@
 
 import { ReactNode, useState } from 'react';
 import { cn } from '@/lib/utils';
-import Pagination from './Pagination';
+import Pagination from './pagination';
 import { Search } from 'lucide-react';
 
 interface Column<T> {

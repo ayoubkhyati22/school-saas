@@ -34,7 +34,8 @@ export default function ExamResultsPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const getGrade = (score: number, max: number): string => {
     const pct = (score / max) * 100;
@@ -150,6 +151,7 @@ export default function ExamResultsPage() {
       <DataTable
         data={results}
         columns={columns}
+        loading={loading}
         keyExtractor={(r) => r.id}
         emptyMessage="No exam results found"
         emptyIcon={<Award size={32} className="text-muted-foreground/40" />}

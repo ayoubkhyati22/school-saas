@@ -59,7 +59,8 @@ export default function SubjectsPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canManage = profile.role === 'school_admin';
 
@@ -169,6 +170,7 @@ export default function SubjectsPage() {
       <DataTable
         data={subjects}
         columns={columns}
+        loading={loading}
         keyExtractor={(s) => s.id}
         emptyMessage="No subjects configured"
         emptyIcon={<BookOpen size={32} className="text-muted-foreground/40" />}

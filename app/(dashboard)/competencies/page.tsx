@@ -29,7 +29,8 @@ export default function CompetenciesPage() {
     supabase.from('ref_subjects').select('id, label').order('label').then(({ data }) => setSubjects(data || []));
   }, []);
 
-  if (profileLoading || !profile) return <LoadingPage />;
+  if (profileLoading) return <LoadingPage />;
+  if (!profile) return null;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>

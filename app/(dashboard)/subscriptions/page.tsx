@@ -52,7 +52,8 @@ export default function SubscriptionsPage() {
   type Tab = 'overview' | 'schools';
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
-  if (profileLoading || !profile) return <LoadingPage />;
+  if (profileLoading) return <LoadingPage />;
+  if (!profile) return null;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>

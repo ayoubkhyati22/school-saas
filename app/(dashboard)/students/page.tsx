@@ -48,7 +48,8 @@ export default function StudentsPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canManage = profile.role === 'school_admin';
 
@@ -185,6 +186,7 @@ export default function StudentsPage() {
       <DataTable
         data={students}
         columns={columns}
+        loading={loading}
         keyExtractor={(s) => s.id}
         emptyMessage="No students found"
         emptyIcon={<Users size={32} className="text-muted-foreground/40" />}

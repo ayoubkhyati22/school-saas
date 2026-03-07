@@ -124,7 +124,7 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  if (loading) return <LoadingPage />;
+  if (!profile && loading) return <LoadingPage />;
 
   if (!profile) {
     return (

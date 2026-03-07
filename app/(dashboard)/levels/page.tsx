@@ -22,7 +22,8 @@ export default function LevelsPage() {
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [form, setForm] = useState({ cycle_name: '', level_name: '', order_index: '' });
 
-  if (profileLoading || !profile) return <LoadingPage />;
+  if (profileLoading) return <LoadingPage />;
+  if (!profile) return null;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>

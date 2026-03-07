@@ -42,7 +42,8 @@ export default function TeachersPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canManage = profile.role === 'school_admin';
 
@@ -171,6 +172,7 @@ export default function TeachersPage() {
       <DataTable
         data={teachers}
         columns={columns}
+        loading={loading}
         keyExtractor={(t) => t.id}
         emptyMessage="No teachers found"
         emptyIcon={<GraduationCap size={32} className="text-muted-foreground/40" />}

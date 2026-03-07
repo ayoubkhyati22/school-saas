@@ -93,7 +93,8 @@ export default function ResultsPage() {
     }
   };
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const selectedExamData = exams.find((e) => e.id === selectedExam);
   const canEdit = ['teacher', 'school_admin'].includes(profile.role);

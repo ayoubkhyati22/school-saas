@@ -56,7 +56,8 @@ export default function ExamsPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canCreate = ['teacher', 'school_admin'].includes(profile.role);
 
@@ -234,6 +235,7 @@ export default function ExamsPage() {
       <DataTable
         data={exams}
         columns={columns}
+        loading={loading}
         keyExtractor={(exam) => exam.id}
         emptyMessage="No exams found"
         emptyIcon={<Award size={32} className="text-muted-foreground/40" />}

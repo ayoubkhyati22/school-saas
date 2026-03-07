@@ -40,7 +40,8 @@ export default function TransportPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canManage = profile.role === 'school_admin';
 

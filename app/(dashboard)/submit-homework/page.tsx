@@ -53,7 +53,8 @@ export default function SubmitHomeworkPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const handleSubmit = async () => {
     if (!selectedHw || !profile) return;

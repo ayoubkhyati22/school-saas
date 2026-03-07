@@ -71,7 +71,8 @@ export default function MyClassesPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   return (
     <DashboardLayout profile={profile}>

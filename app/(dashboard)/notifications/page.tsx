@@ -39,7 +39,8 @@ export default function NotificationsPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canSend = ['school_admin', 'teacher'].includes(profile.role);
   const canDelete = ['school_admin'].includes(profile.role);

@@ -33,7 +33,8 @@ export default function SchoolsPage() {
   const [form, setForm] = useState({ name: '', address: '', massar_id: '', subscription_plan: 'free' });
   const [selectedPlan, setSelectedPlan] = useState('');
 
-  if (profileLoading || !profile) return <LoadingPage />;
+  if (profileLoading) return <LoadingPage />;
+  if (!profile) return null;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>

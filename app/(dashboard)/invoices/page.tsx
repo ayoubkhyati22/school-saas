@@ -52,7 +52,8 @@ export default function InvoicesPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -156,6 +157,7 @@ export default function InvoicesPage() {
       <DataTable
         data={invoices}
         columns={columns}
+        loading={loading}
         keyExtractor={(inv) => inv.id}
         emptyMessage="No invoices found"
         emptyIcon={<Wallet size={32} className="text-muted-foreground/40" />}

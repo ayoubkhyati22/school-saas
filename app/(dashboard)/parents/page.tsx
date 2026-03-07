@@ -51,7 +51,8 @@ export default function ParentsPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canManage = profile.role === 'school_admin';
 
@@ -195,6 +196,7 @@ export default function ParentsPage() {
       <DataTable
         data={parents}
         columns={columns}
+        loading={loading}
         keyExtractor={(p) => p.id}
         emptyMessage="No parents found"
         emptyIcon={<Users size={32} className="text-muted-foreground/40" />}

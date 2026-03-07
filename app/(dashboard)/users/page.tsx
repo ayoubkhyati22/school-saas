@@ -30,7 +30,8 @@ export default function UsersPage() {
     supabase.from('schools').select('id, name').order('name').then(({ data }) => setSchools(data || []));
   }, []);
 
-  if (profileLoading || !profile) return <LoadingPage />;
+  if (profileLoading) return <LoadingPage />;
+  if (!profile) return null;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>

@@ -47,7 +47,8 @@ export default function ClassesPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canManage = profile.role === 'school_admin';
 
@@ -159,6 +160,7 @@ export default function ClassesPage() {
       <DataTable
         data={classes}
         columns={columns}
+        loading={loading}
         keyExtractor={(cls) => cls.id}
         emptyMessage="No classes found"
         emptyIcon={<School size={32} className="text-muted-foreground/40" />}

@@ -53,7 +53,8 @@ export default function CoursesPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canCreate = ['teacher', 'school_admin'].includes(profile.role);
 
@@ -163,6 +164,7 @@ export default function CoursesPage() {
       <DataTable
         data={courses}
         columns={columns}
+        loading={loading}
         keyExtractor={(c) => c.id}
         emptyMessage="No courses found"
         emptyIcon={<BookOpen size={32} className="text-muted-foreground/40" />}

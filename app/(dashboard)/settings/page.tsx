@@ -49,7 +49,8 @@ export default function SettingsPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const isAdmin = profile.role === 'school_admin';
 

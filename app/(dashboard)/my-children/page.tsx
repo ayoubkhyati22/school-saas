@@ -79,7 +79,8 @@ export default function MyChildrenPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const formatDate = (dateStr: string) => {
     try {

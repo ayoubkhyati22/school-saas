@@ -52,7 +52,8 @@ export default function HomeworkPage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canCreate = ['teacher', 'school_admin'].includes(profile.role);
 
@@ -180,6 +181,7 @@ export default function HomeworkPage() {
       <DataTable
         data={homework}
         columns={columns}
+        loading={loading}
         keyExtractor={(hw) => hw.id}
         emptyMessage="No homework found"
         emptyIcon={<ClipboardList size={32} className="text-muted-foreground/40" />}

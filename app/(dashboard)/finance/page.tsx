@@ -52,7 +52,8 @@ export default function FinancePage() {
     loadData();
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canManage = profile.role === 'school_admin';
 
@@ -182,6 +183,7 @@ export default function FinancePage() {
         <DataTable
           data={invoices}
           columns={invoiceColumns}
+          loading={loading}
           keyExtractor={(inv) => inv.id}
           emptyMessage="No invoices found"
           emptyIcon={<Wallet size={32} className="text-muted-foreground/40" />}

@@ -57,7 +57,8 @@ export default function GalleryPage() {
     }
   };
 
-  if (loading || !profile) return <LoadingPage />;
+  if (!profile) return <LoadingPage />;
+
 
   const canManage = ['school_admin', 'teacher'].includes(profile.role);
 

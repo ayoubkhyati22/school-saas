@@ -41,7 +41,7 @@ export function LoadingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar skeleton */}
-      <aside className="w-60 bg-card border-r border-border h-screen fixed left-0 top-0 flex flex-col">
+      <aside className="bg-card border-r border-border h-screen fixed left-0 top-0 flex flex-col" style={{ width: '15rem' }}>
         <div className="h-14 flex items-center px-5 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 bg-primary flex items-center justify-center flex-shrink-0">
@@ -71,7 +71,7 @@ export function LoadingPage() {
       </aside>
 
       {/* Header skeleton */}
-      <header className="ml-60 h-14 border-b border-border bg-card fixed top-0 right-0 left-60 z-10 flex items-center px-6 justify-between">
+      <header className="h-14 border-b border-border bg-card fixed top-0 right-0 z-10 flex items-center px-6 justify-between" style={{ left: '15rem' }}>
         <div className="h-8 w-48 bg-muted animate-pulse" />
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-muted animate-pulse" />
@@ -82,7 +82,7 @@ export function LoadingPage() {
       </header>
 
       {/* Content spinner */}
-      <main className="ml-60 mt-14 min-h-[calc(100vh-56px)]">
+      <main className="mt-14 min-h-[calc(100vh-56px)]" style={{ marginLeft: '15rem' }}>
         <div className="p-6 flex items-center justify-center" style={{ minHeight: 'calc(100vh - 56px)' }}>
           <div className="flex flex-col items-center gap-3">
             <LoadingSpinner size="lg" />

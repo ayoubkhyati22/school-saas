@@ -146,6 +146,7 @@ export default function TransportPage() {
       <DataTable
         data={routes}
         columns={columns}
+        loading={loading}
         keyExtractor={(r) => r.id}
         emptyMessage="No transport routes configured"
         emptyIcon={<Bus size={32} className="text-muted-foreground/40" />}

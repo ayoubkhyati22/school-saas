@@ -11,7 +11,7 @@ import DataTable from '@/components/ui/DataTable';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
-import { LoadingPage } from '@/components/ui/LoadingSpinner';
+import { LoadingPage, LoadingContent } from '@/components/ui/LoadingSpinner';
 import { Award, Save } from 'lucide-react';
 
 export default function ResultsPage() {
@@ -220,7 +220,7 @@ export default function ResultsPage() {
         description="View and manage student performance"
       />
 
-      <div className="mb-4 flex items-end gap-3 flex-wrap">
+      {loading ? <LoadingContent /> : <><div className="mb-4 flex items-end gap-3 flex-wrap">
         <div className="w-72">
           <Select
             label="Select Exam"
@@ -262,7 +262,7 @@ export default function ResultsPage() {
           <Award size={40} className="text-muted-foreground/40" />
           <p className="text-sm">Select an exam to view results</p>
         </div>
-      )}
+      )}</>}
     </DashboardLayout>
   );
 }

@@ -8,7 +8,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import { LoadingPage } from '@/components/ui/LoadingSpinner';
+import { LoadingPage, LoadingContent } from '@/components/ui/LoadingSpinner';
 import { Plus, Image as ImageIcon, FolderOpen, ArrowLeft, Trash2, Pencil, Upload, X } from 'lucide-react';
 
 export default function GalleryPage() {
@@ -275,7 +275,7 @@ export default function GalleryPage() {
         }
       />
 
-      {albums.length === 0 ? (
+      {loading ? <LoadingContent /> : albums.length === 0 ? (
         <div className="bg-card border border-border p-16 flex flex-col items-center justify-center gap-3 text-muted-foreground">
           <FolderOpen size={40} className="text-muted-foreground/40" />
           <p className="text-sm">No albums created yet</p>

@@ -6,7 +6,7 @@ import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
-import { LoadingPage } from '@/components/ui/LoadingSpinner';
+import { LoadingPage, LoadingContent } from '@/components/ui/LoadingSpinner';
 import { Users, ClipboardList, Award, BookOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
@@ -104,7 +104,7 @@ export default function MyChildrenPage() {
         description="Track your children's academic progress"
       />
 
-      {children.length === 0 ? (
+      {loading ? <LoadingContent /> : children.length === 0 ? (
         <div className="bg-card border border-border p-16 flex flex-col items-center justify-center gap-3 text-muted-foreground">
           <Users size={40} className="text-muted-foreground/40" />
           <p className="text-sm">No children linked to your account</p>

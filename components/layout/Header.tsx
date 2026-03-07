@@ -11,9 +11,10 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 interface HeaderProps {
   profile: Profile;
   title?: string;
+  collapsed?: boolean;
 }
 
-export default function Header({ profile, title }: HeaderProps) {
+export default function Header({ profile, title, collapsed = false }: HeaderProps) {
   const [search, setSearch] = useState('');
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -28,7 +29,10 @@ export default function Header({ profile, title }: HeaderProps) {
   };
 
   return (
-    <header className="h-14 border-b border-border bg-card fixed top-0 right-0 left-60 z-10">
+    <header
+      className="h-14 border-b border-border bg-card fixed top-0 right-0 z-10 transition-[left] duration-200"
+      style={{ left: collapsed ? '3.5rem' : '15rem' }}
+    >
       <div className="flex items-center justify-between h-full px-6">
         {/* Search */}
         <div className="relative flex-1 max-w-xs">

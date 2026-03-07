@@ -10,7 +10,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
-import { LoadingPage } from '@/components/ui/LoadingSpinner';
+import { LoadingPage, LoadingContent } from '@/components/ui/LoadingSpinner';
 import { Bell, Send, User, Trash2 } from 'lucide-react';
 
 export default function NotificationsPage() {
@@ -94,7 +94,7 @@ export default function NotificationsPage() {
     <DashboardLayout profile={profile}>
       <PageHeader title="Notifications" description="School-wide announcements and messages" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {loading ? <LoadingContent /> : <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {canSend && (
           <div className="lg:col-span-1">
             <div className="bg-card border border-border p-5">
@@ -179,7 +179,7 @@ export default function NotificationsPage() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       <Modal
         open={!!deleteItem}

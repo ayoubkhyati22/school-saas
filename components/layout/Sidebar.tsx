@@ -6,13 +6,15 @@ import {
   LayoutDashboard, Building2, BookOpen, Award, Users,
   GraduationCap, User, School, FileText, ClipboardList,
   FileCheck, Bus, Image, Wallet, Bell, Settings, CreditCard,
-  ChevronDown, ChevronRight, Globe
+  Globe, PanelLeft, PanelLeftClose
 } from 'lucide-react';
 import { Profile } from '@/types/database';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   profile: Profile;
+  collapsed: boolean;
+  onToggle: () => void;
 }
 
 type MenuItem = {
@@ -97,25 +99,47 @@ const roleLabels: Record<string, string> = {
   student: 'Student',
 };
 
-export default function Sidebar({ profile }: SidebarProps) {
+export default function Sidebar({ profile, collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const items = menuItems[profile.role] || [];
 
   return (
-    <aside className="w-60 bg-card border-r border-border h-screen fixed left-0 top-0 flex flex-col overflow-hidden">
-      {/* Logo */}
-      <div className="h-14 flex items-center px-5 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-primary flex items-center justify-center flex-shrink-0">
-            <School size={14} className="text-primary-foreground" />
+    <aside
+      className="bg-card border-r border-border h-screen fixed left-0 top-0 flex flex-col overflow-hidden transition-[width] duration-200 z-20"
+      style={{ width: collapsed ? '3.5rem' : '15rem' }}
+    >
+      {/* Logo / Toggle */}
+      <div className="h-14 flex items-center border-b border-border flex-shrink-0 px-3">
+        {collapsed ? (
+          <button
+            onClick={onToggle}
+            className="w-8 h-8 flex items-center justify-center mx-auto hover:bg-muted transition-colors"
+            title="Expand sidebar"
+          >
+            <PanelLeft size={16} className="text-muted-foreground" />
+          </button>
+        ) : (
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 bg-primary flex items-center justify-center flex-shrink-0">
+                <School size={14} className="text-primary-foreground" />
+              </div>
+              <span className="font-bold text-sm text-foreground tracking-tight">EduManager</span>
+            </div>
+            <button
+              onClick={onToggle}
+              className="w-7 h-7 flex items-center justify-center hover:bg-muted transition-colors"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose size={15} className="text-muted-foreground" />
+            </button>
           </div>
-          <span className="font-bold text-sm text-foreground tracking-tight">EduManager</span>
-        </div>
+        )}
       </div>
 
       {/* Nav Items */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin py-3">
-        <div className="px-3 space-y-0.5">
+        <div className={cn('space-y-0.5', collapsed ? 'px-2' : 'px-3')}>
           {items.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
@@ -123,15 +147,17 @@ export default function Sidebar({ profile }: SidebarProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                title={collapsed ? item.label : undefined}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors',
+                  'flex items-center gap-3 py-2 text-sm font-medium transition-colors',
+                  collapsed ? 'justify-center px-2' : 'px-3',
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 )}
               >
                 <Icon size={16} className="flex-shrink-0" />
-                <span className="truncate">{item.label}</span>
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
@@ -139,16 +165,25 @@ export default function Sidebar({ profile }: SidebarProps) {
       </nav>
 
       {/* User Profile */}
-      <div className="border-t border-border p-4 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-muted flex items-center justify-center flex-shrink-0 text-sm font-semibold text-foreground">
+      <div className={cn('border-t border-border flex-shrink-0', collapsed ? 'p-2' : 'p-4')}>
+        {collapsed ? (
+          <div
+            className="w-8 h-8 bg-muted flex items-center justify-center mx-auto text-sm font-semibold text-foreground"
+            title={profile.full_name || 'User'}
+          >
             {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-foreground truncate">{profile.full_name}</p>
-            <p className="text-xs text-muted-foreground truncate">{roleLabels[profile.role]}</p>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-muted flex items-center justify-center flex-shrink-0 text-sm font-semibold text-foreground">
+              {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-foreground truncate">{profile.full_name}</p>
+              <p className="text-xs text-muted-foreground truncate">{roleLabels[profile.role]}</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </aside>
   );

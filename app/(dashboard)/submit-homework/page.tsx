@@ -9,7 +9,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import FileUploader from '@/components/ui/FileUploader';
-import { LoadingPage } from '@/components/ui/LoadingSpinner';
+import { LoadingPage, LoadingContent } from '@/components/ui/LoadingSpinner';
 import { ClipboardList, Calendar, ChevronRight, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
@@ -104,7 +104,7 @@ export default function SubmitHomeworkPage() {
         description="View and submit your pending homework assignments"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {loading ? <LoadingContent /> : <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-3">Active Assignments</h2>
           {homework.length === 0 ? (
@@ -206,7 +206,7 @@ export default function SubmitHomeworkPage() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
     </DashboardLayout>
   );
 }

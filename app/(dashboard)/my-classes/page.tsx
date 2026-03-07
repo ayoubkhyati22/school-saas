@@ -5,7 +5,7 @@ import { getCurrentProfile } from '@/lib/auth';
 import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
-import { LoadingPage } from '@/components/ui/LoadingSpinner';
+import { LoadingPage, LoadingContent } from '@/components/ui/LoadingSpinner';
 import { BookOpen, Users, ClipboardList, Award } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
@@ -81,7 +81,7 @@ export default function MyClassesPage() {
         description="Classes you are assigned to teach"
       />
 
-      {myClasses.length === 0 ? (
+      {loading ? <LoadingContent /> : myClasses.length === 0 ? (
         <div className="bg-card border border-border p-16 flex flex-col items-center justify-center gap-3 text-muted-foreground">
           <BookOpen size={40} className="text-muted-foreground/40" />
           <p className="text-sm">No classes assigned yet</p>

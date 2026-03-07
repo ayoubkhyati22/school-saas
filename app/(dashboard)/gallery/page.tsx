@@ -188,7 +188,7 @@ export default function GalleryPage() {
             {photos.map((photo) => (
               <div key={photo.id} className="relative group aspect-square bg-muted overflow-hidden">
                 <img
-                  src={getPhotoUrl(photo.photo_url)}
+                  src={getPhotoUrl(photo.image_url)}
                   alt=""
                   className="w-full h-full object-cover"
                 />

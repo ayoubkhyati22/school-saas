@@ -39,8 +39,9 @@ export default function ExamsPage() {
       setProfile(profileData);
       if (profileData?.school_id) {
         try {
+          const examFilters = profileData.role === 'teacher' ? { teacherId: profileData.id } : undefined;
           const [examsData, classesData, subjectsRes] = await Promise.all([
-            getExams(profileData.school_id),
+            getExams(profileData.school_id, examFilters),
             getClasses(profileData.school_id),
             supabase.from('school_subjects').select('id, custom_label, ref_subjects(label)').eq('school_id', profileData.school_id),
           ]);
@@ -116,7 +117,8 @@ export default function ExamsPage() {
           coefficient: Number(form.coefficient), term: form.term,
         });
       }
-      const updated = await getExams(profile.school_id);
+      const examFilters = profile.role === 'teacher' ? { teacherId: profile.id } : undefined;
+      const updated = await getExams(profile.school_id, examFilters);
       setExams(updated || []);
       setShowModal(false);
       resetForm();

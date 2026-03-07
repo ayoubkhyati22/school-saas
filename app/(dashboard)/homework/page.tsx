@@ -35,8 +35,9 @@ export default function HomeworkPage() {
       setProfile(profileData);
       if (profileData?.school_id) {
         try {
+          const hwFilters = profileData.role === 'teacher' ? { teacherId: profileData.id } : undefined;
           const [hwData, classesData, subjectsRes] = await Promise.all([
-            getHomework(profileData.school_id),
+            getHomework(profileData.school_id, hwFilters),
             getClasses(profileData.school_id),
             supabase.from('school_subjects').select('id, custom_label, ref_subjects(label)').eq('school_id', profileData.school_id),
           ]);
@@ -86,7 +87,8 @@ export default function HomeworkPage() {
           title: form.title, description: form.description, due_date: form.due_date,
         });
       }
-      const updated = await getHomework(profile.school_id);
+      const hwFilters = profile.role === 'teacher' ? { teacherId: profile.id } : undefined;
+      const updated = await getHomework(profile.school_id, hwFilters);
       setHomework(updated || []);
       setShowModal(false);
       setForm({ title: '', description: '', due_date: '', class_id: '', subject_id: '' });

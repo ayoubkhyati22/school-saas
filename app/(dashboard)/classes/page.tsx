@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentProfile } from '@/lib/auth';
-import { getClasses, createClass, updateClass, deleteClass } from '@/services/class.service';
+import { getClassesWithCounts, createClass, updateClass, deleteClass } from '@/services/class.service';
 import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
@@ -33,7 +33,7 @@ export default function ClassesPage() {
       if (profileData?.school_id) {
         try {
           const [classesData, levelsData] = await Promise.all([
-            getClasses(profileData.school_id),
+            getClassesWithCounts(profileData.school_id),
             supabase.from('ref_levels').select('*').order('order_index'),
           ]);
           setClasses(classesData || []);
@@ -73,7 +73,7 @@ export default function ClassesPage() {
       } else {
         await createClass({ school_id: profile.school_id, name: form.name, academic_year: form.academic_year, ref_level_id: form.ref_level_id });
       }
-      const updated = await getClasses(profile.school_id);
+      const updated = await getClassesWithCounts(profile.school_id);
       setClasses(updated || []);
       setShowModal(false);
       setForm({ name: '', academic_year: '', ref_level_id: '' });
@@ -119,10 +119,10 @@ export default function ClassesPage() {
     {
       key: 'students',
       label: 'Students',
-      render: () => (
+      render: (cls: any) => (
         <div className="flex items-center gap-2 text-muted-foreground">
           <Users size={14} />
-          <span className="text-sm">0</span>
+          <span className="text-sm">{cls.studentCount ?? 0}</span>
         </div>
       ),
     },

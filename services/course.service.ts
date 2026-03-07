@@ -4,13 +4,14 @@ export async function getCourses(schoolId: string, filters?: {
   classId?: string;
   subjectId?: string;
   teacherId?: string;
+  publishedOnly?: boolean;
 }) {
   let query = supabase
     .from('courses_pdf')
     .select(`
       *,
       profiles:teacher_id (full_name),
-      school_subjects (custom_label, ref_subjects (label)),
+      school_subjects!courses_pdf_subject_id_fkey (custom_label, ref_subjects (label)),
       classes (name)
     `)
     .eq('school_id', schoolId);
@@ -24,6 +25,9 @@ export async function getCourses(schoolId: string, filters?: {
   if (filters?.teacherId) {
     query = query.eq('teacher_id', filters.teacherId);
   }
+  if (filters?.publishedOnly) {
+    query = query.eq('is_published', true);
+  }
 
   const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -34,7 +38,7 @@ export async function getCourses(schoolId: string, filters?: {
 export async function createCourse(courseData: {
   school_id: string;
   teacher_id: string;
-  subject_id: string;
+  subject_id?: string | null;
   class_id: string;
   title: string;
   file_path: string;
@@ -52,7 +56,7 @@ export async function createCourse(courseData: {
 
 export async function uploadCourseFile(file: File, path: string) {
   const { data, error } = await supabase.storage
-    .from('school-content')
+    .from('school-saas')
     .upload(path, file);
 
   if (error) throw error;

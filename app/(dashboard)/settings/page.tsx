@@ -88,6 +88,22 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAvatarUpload = async (file: File) => {
+    if (!profile) return;
+    try {
+      const path = `avatars/${profile.id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('school-saas').upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('school-saas').getPublicUrl(path);
+      await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', profile.id);
+      setMessage('Avatar updated successfully.');
+    } catch (e) {
+      setMessage('Failed to upload avatar.');
+    } finally {
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
   const handleChangePassword = async () => {
     if (!passwordForm.new || passwordForm.new !== passwordForm.confirm) {
       setMessage('Passwords do not match.');
@@ -176,10 +192,10 @@ export default function SettingsPage() {
               />
             </div>
             <FileUploader
-              onFileSelect={(file) => {}}
+              onFileSelect={handleAvatarUpload}
               accept="image/*"
               label="Avatar"
-              description="Upload a profile picture"
+              description="Upload a profile picture (JPG, PNG, max 2MB)"
               maxSizeMB={2}
             />
             <Button onClick={handleSaveProfile} loading={savingProfile}>

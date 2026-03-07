@@ -14,8 +14,7 @@ export async function getAlbumPhotos(albumId: string) {
   const { data, error } = await supabase
     .from('gallery_photos')
     .select('*')
-    .eq('album_id', albumId)
-    .order('created_at', { ascending: false });
+    .eq('album_id', albumId);
   if (error) throw error;
   return data;
 }
@@ -23,7 +22,6 @@ export async function getAlbumPhotos(albumId: string) {
 export async function createAlbum(albumData: {
   school_id: string;
   title: string;
-  target_class_id?: string;
 }) {
   const { data, error } = await supabase
     .from('gallery_albums')
@@ -37,12 +35,12 @@ export async function createAlbum(albumData: {
 export async function uploadPhoto(albumId: string, file: File) {
   const path = `gallery/${albumId}/${Date.now()}-${file.name}`;
   const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('school-content')
+    .from('school-saas')
     .upload(path, file);
   if (uploadError) throw uploadError;
   const { data: photoData, error: photoError } = await supabase
     .from('gallery_photos')
-    .insert({ album_id: albumId, photo_url: path })
+    .insert({ album_id: albumId, image_url: path })
     .select()
     .single();
   if (photoError) throw photoError;
@@ -77,5 +75,5 @@ export async function deletePhoto(photoId: string) {
 }
 
 export function getPhotoUrl(path: string): string {
-  return supabase.storage.from('school-content').getPublicUrl(path).data?.publicUrl || '';
+  return supabase.storage.from('school-saas').getPublicUrl(path).data?.publicUrl || '';
 }

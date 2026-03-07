@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentProfile } from '@/lib/auth';
-import { getStudents, updateProfile, deleteProfile } from '@/services/profile.service';
+import { getStudentsWithClass, updateProfile } from '@/services/profile.service';
+import { createUser, deleteUser } from '@/services/user.service';
 import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
@@ -25,6 +26,7 @@ export default function StudentsPage() {
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState({ full_name: '', email: '', phone_number: '', class_id: '' });
 
   useEffect(() => {
@@ -34,8 +36,8 @@ export default function StudentsPage() {
       if (profileData?.school_id) {
         try {
           const [studentsData, classesRes] = await Promise.all([
-            getStudents(profileData.school_id),
-            supabase.from('classes').select('id, name').eq('school_id', profileData.school_id).order('name'),
+            getStudentsWithClass(profileData.school_id),
+            supabase.from('classes').select('id, name, academic_year').eq('school_id', profileData.school_id).order('name'),
           ]);
           setStudents(studentsData || []);
           setClasses(classesRes.data || []);
@@ -61,37 +63,49 @@ export default function StudentsPage() {
 
   const openEdit = (student: any) => {
     setEditItem(student);
-    setForm({ full_name: student.full_name, email: student.email || '', phone_number: student.phone_number || '', class_id: '' });
+    setForm({ full_name: student.full_name, email: student.email || '', phone_number: student.phone_number || '', class_id: student.className ? (classes.find((c) => c.name === student.className)?.id || '') : '' });
     setShowModal(true);
   };
 
   const handleSubmit = async () => {
     if (!profile.school_id || !form.full_name) return;
     setSaving(true);
+    setSaveError('');
     try {
       if (editItem) {
         await updateProfile(editItem.id, { full_name: form.full_name, phone_number: form.phone_number });
-        setStudents((prev) => prev.map((s) => s.id === editItem.id ? { ...s, full_name: form.full_name, phone_number: form.phone_number } : s));
-      } else {
-        if (!form.email) return;
-        await supabase.from('profiles').insert({
-          full_name: form.full_name, email: form.email,
-          phone_number: form.phone_number || null,
-          school_id: profile.school_id, role: 'student',
-          username: form.email.split('@')[0],
-        });
-        const updated = await getStudents(profile.school_id);
-        setStudents(updated || []);
         if (form.class_id) {
-          const { data: newProfile } = await supabase.from('profiles').select('id').eq('email', form.email).single();
-          if (newProfile) {
-            await supabase.from('enrollments').insert({ student_id: newProfile.id, class_id: form.class_id });
-          }
+          const selectedClass = classes.find((c) => c.id === form.class_id);
+          await supabase.from('enrollments').delete().eq('student_id', editItem.id);
+          await supabase.from('enrollments').insert({
+            student_id: editItem.id,
+            class_id: form.class_id,
+            school_id: profile.school_id,
+            academic_year: selectedClass?.academic_year || String(new Date().getFullYear()),
+          });
         }
+        const updated = await getStudentsWithClass(profile.school_id);
+        setStudents(updated || []);
+      } else {
+        if (!form.email) { setSaveError('Email is required.'); setSaving(false); return; }
+        const newProfile = await createUser({ full_name: form.full_name, email: form.email, phone_number: form.phone_number, role: 'student', school_id: profile.school_id });
+        if (newProfile && form.class_id) {
+          const selectedClass = classes.find((c) => c.id === form.class_id);
+          await supabase.from('enrollments').insert({
+            student_id: newProfile.id,
+            class_id: form.class_id,
+            school_id: profile.school_id,
+            academic_year: selectedClass?.academic_year || String(new Date().getFullYear()),
+          });
+        }
+        const updated = await getStudentsWithClass(profile.school_id);
+        setStudents(updated || []);
       }
       setShowModal(false);
+      setSaveError('');
       setForm({ full_name: '', email: '', phone_number: '', class_id: '' });
-    } catch (e) {
+    } catch (e: any) {
+      setSaveError(e?.message || 'Failed to save student.');
     } finally {
       setSaving(false);
     }
@@ -101,7 +115,7 @@ export default function StudentsPage() {
     if (!deleteItem) return;
     setDeleting(true);
     try {
-      await deleteProfile(deleteItem.id);
+      await deleteUser(deleteItem.id);
       setStudents((prev) => prev.filter((s) => s.id !== deleteItem.id));
       setDeleteItem(null);
     } catch (e) {
@@ -151,6 +165,10 @@ export default function StudentsPage() {
             <span className="text-sm text-foreground">{student.phone_number}</span>
           </div>
         ) : <span className="text-muted-foreground text-sm">—</span>,
+    },
+    {
+      key: 'class', label: 'Class',
+      render: (student: any) => <span className="text-sm text-foreground">{student.className || '—'}</span>,
     },
     { key: 'status', label: 'Status', render: () => <Badge variant="success">Active</Badge> },
     ...(canManage ? [{
@@ -239,15 +257,16 @@ export default function StudentsPage() {
               className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
-          {!editItem && classes.length > 0 && (
+          {classes.length > 0 && (
             <Select
-              label="Enroll in Class (Optional)"
+              label={editItem ? 'Change Class' : 'Enroll in Class (Optional)'}
               placeholder="Select a class..."
               value={form.class_id}
               onValueChange={(v) => setForm({ ...form, class_id: v })}
               options={classes.map((c) => ({ value: c.id, label: c.name }))}
             />
           )}
+          {saveError && <p className="text-xs text-destructive">{saveError}</p>}
         </div>
       </Modal>
 

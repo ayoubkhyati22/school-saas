@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrentProfile } from '@/lib/auth';
-import { getTeachers, updateProfile, deleteProfile } from '@/services/profile.service';
+import { getTeachersWithSubjects, updateProfile } from '@/services/profile.service';
+import { createUser, deleteUser } from '@/services/user.service';
 import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
@@ -23,6 +24,7 @@ export default function TeachersPage() {
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState({ full_name: '', email: '', phone_number: '' });
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function TeachersPage() {
       setProfile(profileData);
       if (profileData?.school_id) {
         try {
-          const data = await getTeachers(profileData.school_id);
+          const data = await getTeachersWithSubjects(profileData.school_id);
           setTeachers(data || []);
         } catch (e) {
           setTeachers([]);
@@ -62,24 +64,21 @@ export default function TeachersPage() {
   const handleSubmit = async () => {
     if (!profile.school_id || !form.full_name) return;
     setSaving(true);
+    setSaveError('');
     try {
       if (editItem) {
         await updateProfile(editItem.id, { full_name: form.full_name, phone_number: form.phone_number });
-        setTeachers((prev) => prev.map((t) => t.id === editItem.id ? { ...t, full_name: form.full_name, phone_number: form.phone_number } : t));
       } else {
-        if (!form.email) return;
-        await supabase.from('profiles').insert({
-          full_name: form.full_name, email: form.email,
-          phone_number: form.phone_number || null,
-          school_id: profile.school_id, role: 'teacher',
-          username: form.email.split('@')[0],
-        });
-        const updated = await getTeachers(profile.school_id);
-        setTeachers(updated || []);
+        if (!form.email) { setSaveError('Email is required.'); setSaving(false); return; }
+        await createUser({ full_name: form.full_name, email: form.email, phone_number: form.phone_number, role: 'teacher', school_id: profile.school_id });
       }
+      const updated = await getTeachersWithSubjects(profile.school_id);
+      setTeachers(updated || []);
       setShowModal(false);
+      setSaveError('');
       setForm({ full_name: '', email: '', phone_number: '' });
-    } catch (e) {
+    } catch (e: any) {
+      setSaveError(e?.message || 'Failed to save teacher.');
     } finally {
       setSaving(false);
     }
@@ -89,8 +88,8 @@ export default function TeachersPage() {
     if (!deleteItem) return;
     setDeleting(true);
     try {
-      await deleteProfile(deleteItem.id);
-      setTeachers((prev) => prev.filter((t) => t.id !== deleteItem.id));
+      await deleteUser(deleteItem.id);
+      setTeachers((prev) => prev.filter((t: any) => t.id !== deleteItem.id));
       setDeleteItem(null);
     } catch (e) {
     } finally {
@@ -138,6 +137,12 @@ export default function TeachersPage() {
           </div>
         ) : <span className="text-muted-foreground text-sm">—</span>,
     },
+    {
+      key: 'subjects', label: 'Subjects',
+      render: (teacher: any) => teacher.subjects?.length > 0
+        ? <span className="text-sm text-foreground">{teacher.subjects.slice(0, 2).join(', ')}{teacher.subjects.length > 2 ? ` +${teacher.subjects.length - 2}` : ''}</span>
+        : <span className="text-muted-foreground text-sm">—</span>,
+    },
     { key: 'status', label: 'Status', render: () => <Badge variant="success">Active</Badge> },
     ...(canManage ? [{
       key: 'actions', label: '',
@@ -182,12 +187,12 @@ export default function TeachersPage() {
 
       <Modal
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { setShowModal(false); setSaveError(''); }}
         title={editItem ? 'Edit Teacher' : 'Add Teacher'}
         description={editItem ? 'Update teacher information' : 'Add a new teacher to your school'}
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setShowModal(false); setSaveError(''); }}>Cancel</Button>
             <Button onClick={handleSubmit} loading={saving}>{editItem ? 'Save Changes' : 'Add Teacher'}</Button>
           </>
         }
@@ -225,6 +230,7 @@ export default function TeachersPage() {
               className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
+          {saveError && <p className="text-xs text-destructive">{saveError}</p>}
         </div>
       </Modal>
 

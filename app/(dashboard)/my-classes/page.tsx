@@ -22,44 +22,47 @@ export default function MyClassesPage() {
 
       if (profileData?.id && profileData.school_id) {
         try {
-          // Fetch classes where teacher has school_subjects assignments
-          const { data: subjectsData } = await supabase
-            .from('school_subjects')
-            .select(`
-              *,
-              ref_subjects (label),
-              classes (id, name, academic_year)
-            `)
-            .eq('school_id', profileData.school_id)
-            .eq('teacher_id', profileData.id);
+          // Fetch classes via courses_pdf and homework (both have teacher_id + class_id)
+          const [coursesRes, hwRes] = await Promise.all([
+            supabase.from('courses_pdf').select('class_id, school_subjects(custom_label, ref_subjects(label))').eq('teacher_id', profileData.id).eq('school_id', profileData.school_id),
+            supabase.from('homework').select('class_id, school_subjects(custom_label, ref_subjects(label))').eq('teacher_id', profileData.id).eq('school_id', profileData.school_id),
+          ]);
 
-          const classMap = new Map();
-          (subjectsData || []).forEach((subject: any) => {
-            if (subject.classes) {
-              const classId = subject.classes.id;
-              if (!classMap.has(classId)) {
-                classMap.set(classId, {
-                  ...subject.classes,
-                  subjects: [],
-                });
+          const classIds = new Set<string>();
+          const subjectsByClass: Record<string, string[]> = {};
+
+          const processItems = (items: any[]) => {
+            items.forEach((item: any) => {
+              if (!item.class_id) return;
+              classIds.add(item.class_id);
+              if (!subjectsByClass[item.class_id]) subjectsByClass[item.class_id] = [];
+              const label = item.school_subjects?.custom_label || item.school_subjects?.ref_subjects?.label;
+              if (label && !subjectsByClass[item.class_id].includes(label)) {
+                subjectsByClass[item.class_id].push(label);
               }
-              classMap.get(classId).subjects.push(
-                subject.custom_label || subject.ref_subjects?.label || 'Subject'
-              );
-            }
+            });
+          };
+          processItems(coursesRes.data || []);
+          processItems(hwRes.data || []);
+
+          if (classIds.size === 0) { setMyClasses([]); setLoading(false); return; }
+
+          const classIdsArr = Array.from(classIds);
+          const [classesRes, enrollRes] = await Promise.all([
+            supabase.from('classes').select('id, name, academic_year').in('id', classIdsArr),
+            supabase.from('enrollments').select('class_id').in('class_id', classIdsArr),
+          ]);
+
+          const countMap: Record<string, number> = {};
+          (enrollRes.data || []).forEach((e: any) => {
+            countMap[e.class_id] = (countMap[e.class_id] || 0) + 1;
           });
 
-          // Get student count for each class
-          const classes = Array.from(classMap.values());
-          const enriched = await Promise.all(
-            classes.map(async (cls: any) => {
-              const { count } = await supabase
-                .from('enrollments')
-                .select('id', { count: 'exact' })
-                .eq('class_id', cls.id);
-              return { ...cls, studentCount: count || 0 };
-            })
-          );
+          const enriched = (classesRes.data || []).map((cls: any) => ({
+            ...cls,
+            subjects: subjectsByClass[cls.id] || [],
+            studentCount: countMap[cls.id] || 0,
+          }));
 
           setMyClasses(enriched);
         } catch (e) {

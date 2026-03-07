@@ -32,17 +32,23 @@ export default function SubmitHomeworkPage() {
 
       if (profileData?.school_id) {
         try {
-          const hwData = await getHomework(profileData.school_id);
+          // Get student's enrolled class first
+          const { data: enrollment } = await supabase
+            .from('enrollments')
+            .select('class_id')
+            .eq('student_id', profileData.id)
+            .single();
+
+          const [hwData, subsData] = await Promise.all([
+            getHomework(profileData.school_id, enrollment?.class_id ? { classId: enrollment.class_id } : undefined),
+            supabase.from('homework_submissions').select('homework_id').eq('student_id', profileData.id),
+          ]);
+
           // Only show active (not overdue) homework
           const active = (hwData || []).filter((hw: any) => new Date(hw.due_date) >= new Date());
           setHomework(active);
 
-          // Check which ones are already submitted
-          const { data: subs } = await supabase
-            .from('homework_submissions')
-            .select('homework_id')
-            .eq('student_id', profileData.id);
-          const submittedIds = new Set((subs || []).map((s: any) => s.homework_id));
+          const submittedIds = new Set((subsData.data || []).map((s: any) => s.homework_id));
           setSubmitted(submittedIds);
         } catch (e) {
           setHomework([]);
@@ -63,8 +69,8 @@ export default function SubmitHomeworkPage() {
       let fileUrl: string | undefined;
       if (submissionFile) {
         const path = `submissions/${profile.id}/${Date.now()}_${submissionFile.name}`;
-        await supabase.storage.from('school-content').upload(path, submissionFile);
-        fileUrl = supabase.storage.from('school-content').getPublicUrl(path).data?.publicUrl;
+        await supabase.storage.from('school-saas').upload(path, submissionFile);
+        fileUrl = supabase.storage.from('school-saas').getPublicUrl(path).data?.publicUrl;
       }
 
       await submitHomework({

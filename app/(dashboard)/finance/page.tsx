@@ -29,6 +29,7 @@ export default function FinancePage() {
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState({ title: '', amount: '', student_id: '', due_date: '', status: 'pending' });
 
   useEffect(() => {
@@ -36,13 +37,18 @@ export default function FinancePage() {
       const profileData = await getCurrentProfile();
       setProfile(profileData);
       if (profileData?.school_id) {
+        // Always load students independently so dropdown works even if invoices fail
+        const studentsRes = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('school_id', profileData.school_id)
+          .eq('role', 'student')
+          .order('full_name');
+        setStudents(studentsRes.data || []);
+
         try {
-          const [invoicesData, studentsRes] = await Promise.all([
-            getInvoices(profileData.school_id),
-            supabase.from('profiles').select('id, full_name').eq('school_id', profileData.school_id).eq('role', 'student'),
-          ]);
+          const invoicesData = await getInvoices(profileData.school_id);
           setInvoices(invoicesData || []);
-          setStudents(studentsRes.data || []);
         } catch (e) {
           setInvoices([]);
         }
@@ -80,19 +86,21 @@ export default function FinancePage() {
   const handleSubmit = async () => {
     if (!profile.school_id || !form.title || !form.amount) return;
     setSaving(true);
+    setSaveError('');
     try {
       if (editItem) {
         await updateInvoice(editItem.id, { title: form.title, amount: Number(form.amount), due_date: form.due_date || undefined, status: form.status });
-        const updated = await getInvoices(profile.school_id);
-        setInvoices(updated || []);
       } else {
+        if (!form.student_id) { setSaveError('Please select a student.'); setSaving(false); return; }
         await createInvoice({ school_id: profile.school_id, student_id: form.student_id, title: form.title, amount: Number(form.amount), due_date: form.due_date || undefined });
-        const updated = await getInvoices(profile.school_id);
-        setInvoices(updated || []);
       }
+      const updated = await getInvoices(profile.school_id);
+      setInvoices(updated || []);
       setShowModal(false);
+      setSaveError('');
       setForm({ title: '', amount: '', student_id: '', due_date: '', status: 'pending' });
-    } catch (e) {
+    } catch (e: any) {
+      setSaveError(e?.message || 'Failed to save invoice.');
     } finally {
       setSaving(false);
     }
@@ -194,12 +202,12 @@ export default function FinancePage() {
 
       <Modal
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { setShowModal(false); setSaveError(''); }}
         title={editItem ? 'Edit Invoice' : 'New Invoice'}
         description={editItem ? 'Update invoice details' : 'Create a new invoice for a student'}
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setShowModal(false); setSaveError(''); }}>Cancel</Button>
             <Button onClick={handleSubmit} loading={saving}>{editItem ? 'Save Changes' : 'Create Invoice'}</Button>
           </>
         }
@@ -218,14 +226,13 @@ export default function FinancePage() {
               className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           {!editItem && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground">Student</label>
-              <select value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })}
-                className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-                <option value="">Select a student...</option>
-                {students.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-              </select>
-            </div>
+            <Select
+              label="Student"
+              placeholder={students.length === 0 ? 'No students found — add students first' : 'Select a student...'}
+              value={form.student_id}
+              onValueChange={(v) => setForm({ ...form, student_id: v })}
+              options={students.map((s) => ({ value: s.id, label: s.full_name }))}
+            />
           )}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-foreground">Due Date</label>
@@ -238,6 +245,7 @@ export default function FinancePage() {
               onValueChange={(v) => setForm({ ...form, status: v })}
               options={[{ value: 'pending', label: 'Pending' }, { value: 'paid', label: 'Paid' }, { value: 'overdue', label: 'Overdue' }]} />
           )}
+          {saveError && <p className="text-xs text-destructive">{saveError}</p>}
         </div>
       </Modal>
 

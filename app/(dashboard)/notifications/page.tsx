@@ -52,7 +52,7 @@ export default function NotificationsPage() {
       await createNotification({
         school_id: profile.school_id, sender_id: profile.id,
         title: form.title, content: form.content,
-        target_role: form.target_role as UserRole | undefined,
+        target_role: form.target_role ? (form.target_role as UserRole) : undefined,
       });
       const updated = await getNotifications(profile.school_id, profile.role);
       setNotifications(updated || []);

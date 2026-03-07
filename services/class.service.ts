@@ -17,6 +17,29 @@ export async function getClasses(schoolId: string) {
   return data;
 }
 
+export async function getClassesWithCounts(schoolId: string) {
+  const { data: classes, error } = await supabase
+    .from('classes')
+    .select('*, ref_levels(cycle_name, level_name)')
+    .eq('school_id', schoolId)
+    .order('name');
+
+  if (error) throw error;
+  if (!classes || classes.length === 0) return [];
+
+  const { data: enrollData } = await supabase
+    .from('enrollments')
+    .select('class_id')
+    .in('class_id', classes.map((c) => c.id));
+
+  const countMap: Record<string, number> = {};
+  (enrollData || []).forEach((e: any) => {
+    countMap[e.class_id] = (countMap[e.class_id] || 0) + 1;
+  });
+
+  return classes.map((c) => ({ ...c, studentCount: countMap[c.id] || 0 }));
+}
+
 export async function getClassById(classId: string) {
   const { data, error } = await supabase
     .from('classes')

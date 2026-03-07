@@ -93,7 +93,7 @@ export default function DashboardPage() {
 
       if (profileData?.school_id) {
         try {
-          const [studentsRes, teachersRes, classesRes, homeworkRes, examsRes, notifRes, parentsRes] =
+          const [studentsRes, teachersRes, classesRes, homeworkRes, examsRes, notifRes, parentsRes, invoicesRes] =
             await Promise.all([
               supabase.from('profiles').select('id', { count: 'exact' }).eq('school_id', profileData.school_id).eq('role', 'student'),
               supabase.from('profiles').select('id', { count: 'exact' }).eq('school_id', profileData.school_id).eq('role', 'teacher'),
@@ -102,7 +102,10 @@ export default function DashboardPage() {
               supabase.from('exams').select('id', { count: 'exact' }).eq('school_id', profileData.school_id),
               supabase.from('notifications').select('id', { count: 'exact' }).eq('school_id', profileData.school_id),
               supabase.from('profiles').select('id', { count: 'exact' }).eq('school_id', profileData.school_id).eq('role', 'parent'),
+              supabase.from('invoices').select('amount').eq('school_id', profileData.school_id).eq('status', 'paid'),
             ]);
+
+          const revenue = (invoicesRes.data || []).reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0);
 
           setStats({
             students: studentsRes.count || 0,
@@ -110,7 +113,7 @@ export default function DashboardPage() {
             classes: classesRes.count || 0,
             homework: homeworkRes.count || 0,
             exams: examsRes.count || 0,
-            revenue: 12450,
+            revenue,
             notifications: notifRes.count || 0,
             parents: parentsRes.count || 0,
           });
@@ -172,10 +175,10 @@ export default function DashboardPage() {
   const getStatCards = () => {
     if (isAdmin || isAssistant) {
       return [
-        <StatCard key="students" title="Total Students" value={stats.students} icon={Users} color="blue" trend={{ value: 12, isPositive: true }} />,
-        <StatCard key="teachers" title="Teachers" value={stats.teachers} icon={GraduationCap} color="green" trend={{ value: 5, isPositive: true }} />,
+        <StatCard key="students" title="Total Students" value={stats.students} icon={Users} color="blue" />,
+        <StatCard key="teachers" title="Teachers" value={stats.teachers} icon={GraduationCap} color="green" />,
         <StatCard key="classes" title="Classes" value={stats.classes} icon={School} color="purple" />,
-        <StatCard key="homework" title="Active Homework" value={stats.homework} icon={ClipboardList} color="amber" />,
+        <StatCard key="revenue" title="Total Revenue" value={`$${stats.revenue.toLocaleString()}`} icon={DollarSign} color="amber" />,
       ];
     }
     if (isSuperAdmin) {

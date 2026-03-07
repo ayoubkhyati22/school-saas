@@ -5,7 +5,7 @@ export async function getInvoices(schoolId: string) {
     .from('invoices')
     .select('*, profiles:student_id(full_name, email)')
     .eq('school_id', schoolId)
-    .order('created_at', { ascending: false });
+    .order('due_date', { ascending: false });
   if (error) throw error;
   return data;
 }

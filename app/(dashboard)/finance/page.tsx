@@ -1,0 +1,289 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { getCurrentProfile } from '@/lib/auth';
+import { Profile } from '@/types/database';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/ui/PageHeader';
+import StatCard from '@/components/ui/StatCard';
+import DataTable from '@/components/ui/DataTable';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
+import { LoadingPage } from '@/components/ui/LoadingSpinner';
+import { Plus, Wallet, TrendingUp, Clock, AlertCircle, DollarSign } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
+
+type Tab = 'invoices' | 'overview';
+
+export default function FinancePage() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    amount: '',
+    student_id: '',
+    due_date: '',
+  });
+  const [students, setStudents] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadData() {
+      const profileData = await getCurrentProfile();
+      setProfile(profileData);
+
+      if (profileData?.school_id) {
+        try {
+          const [invoicesRes, studentsRes] = await Promise.all([
+            supabase
+              .from('invoices')
+              .select(`
+                *,
+                profiles:student_id (full_name)
+              `)
+              .eq('school_id', profileData.school_id)
+              .order('created_at', { ascending: false }),
+            supabase
+              .from('profiles')
+              .select('id, full_name')
+              .eq('school_id', profileData.school_id)
+              .eq('role', 'student'),
+          ]);
+          setInvoices(invoicesRes.data || []);
+          setStudents(studentsRes.data || []);
+        } catch (e) {
+          setInvoices([]);
+        }
+      }
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  if (loading || !profile) return <LoadingPage />;
+
+  const canCreate = profile.role === 'school_admin';
+
+  const totalRevenue = invoices
+    .filter((inv) => inv.status === 'paid')
+    .reduce((sum, inv) => sum + (inv.amount || 0), 0);
+
+  const pendingAmount = invoices
+    .filter((inv) => inv.status === 'pending')
+    .reduce((sum, inv) => sum + (inv.amount || 0), 0);
+
+  const overdueCount = invoices.filter((inv) => inv.status === 'overdue').length;
+
+  const handleSubmit = async () => {
+    if (!profile.school_id || !form.title || !form.amount) return;
+    setSaving(true);
+    try {
+      await supabase.from('invoices').insert({
+        school_id: profile.school_id,
+        student_id: form.student_id,
+        title: form.title,
+        amount: Number(form.amount),
+        status: 'pending',
+        due_date: form.due_date || null,
+      });
+      const { data } = await supabase
+        .from('invoices')
+        .select('*, profiles:student_id (full_name)')
+        .eq('school_id', profile.school_id)
+        .order('created_at', { ascending: false });
+      setInvoices(data || []);
+      setShowModal(false);
+      setForm({ title: '', amount: '', student_id: '', due_date: '' });
+    } catch (e) {
+      // handle error
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '—';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const statusVariant = (status: string): 'success' | 'warning' | 'danger' => {
+    if (status === 'paid') return 'success';
+    if (status === 'pending') return 'warning';
+    return 'danger';
+  };
+
+  const invoiceColumns = [
+    {
+      key: 'student',
+      label: 'Student',
+      render: (inv: any) => (
+        <span className="text-sm text-foreground">{inv.profiles?.full_name || '—'}</span>
+      ),
+    },
+    {
+      key: 'title',
+      label: 'Title',
+      render: (inv: any) => <span className="text-sm font-medium text-foreground">{inv.title}</span>,
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      render: (inv: any) => (
+        <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(inv.amount)}</span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (inv: any) => (
+        <Badge variant={statusVariant(inv.status)}>
+          {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'due_date',
+      label: 'Due Date',
+      render: (inv: any) => <span className="text-sm text-muted-foreground">{formatDate(inv.due_date)}</span>,
+    },
+  ];
+
+  return (
+    <DashboardLayout profile={profile}>
+      <PageHeader
+        title="Finance"
+        description="Manage invoices and payments"
+        action={
+          canCreate ? (
+            <Button onClick={() => setShowModal(true)}>
+              <Plus size={15} className="mr-2" />
+              New Invoice
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <div className="flex gap-1 mb-6 border-b border-border">
+        {(['overview', 'invoices'] as Tab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors capitalize ${
+              activeTab === tab
+                ? 'text-foreground border-b-2 border-primary -mb-px'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatCard
+            title="Total Revenue"
+            value={formatCurrency(totalRevenue)}
+            icon={TrendingUp}
+            color="green"
+          />
+          <StatCard
+            title="Pending Amount"
+            value={formatCurrency(pendingAmount)}
+            icon={Clock}
+            color="amber"
+          />
+          <StatCard
+            title="Overdue Invoices"
+            value={overdueCount}
+            icon={AlertCircle}
+            color="red"
+          />
+        </div>
+      )}
+
+      {activeTab === 'invoices' && (
+        <DataTable
+          data={invoices}
+          columns={invoiceColumns}
+          keyExtractor={(inv) => inv.id}
+          emptyMessage="No invoices found"
+          emptyIcon={<Wallet size={32} className="text-muted-foreground/40" />}
+          searchable
+          searchKeys={['title']}
+        />
+      )}
+
+      <Modal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title="New Invoice"
+        description="Create a new invoice for a student"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} loading={saving}>Create Invoice</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Invoice Title</label>
+            <input
+              type="text"
+              placeholder="e.g. Monthly Tuition - March"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Amount ($)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Student</label>
+            <select
+              value={form.student_id}
+              onChange={(e) => setForm({ ...form, student_id: e.target.value })}
+              className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Select a student...</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>{s.full_name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Due Date</label>
+            <input
+              type="date"
+              value={form.due_date}
+              onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+              className="h-9 w-full border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </div>
+      </Modal>
+    </DashboardLayout>
+  );
+}

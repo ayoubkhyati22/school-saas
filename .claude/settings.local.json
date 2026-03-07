@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(/c/Users/hp/Downloads/project-bolt-sb1-wcokdgm4/project/components/ui/Badge.tsx:*)",
+      "Bash(mkdir:*)",
+      "Bash(do:*)",
+      "Bash(head:*)",
+      "Bash(/c/Users/hp/Downloads/project-bolt-sb1-wcokdgm4/project/.env.local.example:*)",
+      "Bash(wc:*)"
+    ]
+  }
+}

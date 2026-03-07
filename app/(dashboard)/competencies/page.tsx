@@ -20,13 +20,15 @@ export default function CompetenciesPage() {
   const { competencies, loading, saving, deleting, create, update, remove } = useCompetencies();
 
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [levels, setLevels] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', description: '', subject_id: '' });
+  const [form, setForm] = useState({ label: '', description: '', subject_id: '', level_id: '' });
 
   useEffect(() => {
     supabase.from('ref_subjects').select('id, label').order('label').then(({ data }) => setSubjects(data || []));
+    supabase.from('ref_levels').select('id, label').order('label').then(({ data }) => setLevels(data || []));
   }, []);
 
   if (profileLoading) return <LoadingPage />;
@@ -41,20 +43,20 @@ export default function CompetenciesPage() {
     );
   }
 
-  const openCreate = () => { setEditItem(null); setForm({ name: '', description: '', subject_id: '' }); setShowModal(true); };
+  const openCreate = () => { setEditItem(null); setForm({ label: '', description: '', subject_id: '', level_id: '' }); setShowModal(true); };
   const openEdit = (comp: any) => {
     setEditItem(comp);
-    setForm({ name: comp.name, description: comp.description || '', subject_id: comp.subject_id || '' });
+    setForm({ label: comp.label, description: comp.description || '', subject_id: comp.subject_id || '', level_id: comp.level_id || '' });
     setShowModal(true);
   };
 
   const handleSubmit = async () => {
-    if (!form.name) return;
-    const payload = { name: form.name, description: form.description || null, subject_id: form.subject_id || null };
+    if (!form.label) return;
+    const payload = { label: form.label, description: form.description || null, subject_id: form.subject_id || null, level_id: form.level_id || null };
     const ok = editItem
       ? await update(editItem.id, payload)
       : await create(payload);
-    if (ok) { setShowModal(false); setForm({ name: '', description: '', subject_id: '' }); }
+    if (ok) { setShowModal(false); setForm({ label: '', description: '', subject_id: '', level_id: '' }); }
   };
 
   const handleDelete = async () => {
@@ -65,18 +67,19 @@ export default function CompetenciesPage() {
 
   const columns = [
     {
-      key: 'name', label: 'Competency',
+      key: 'label', label: 'Competency',
       render: (comp: any) => (
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-muted flex items-center justify-center">
             <Target size={14} className="text-muted-foreground" />
           </div>
-          <span className="font-medium text-foreground">{comp.name}</span>
+          <span className="font-medium text-foreground">{comp.label}</span>
         </div>
       ),
     },
     { key: 'description', label: 'Description', render: (comp: any) => <span className="text-sm text-muted-foreground">{comp.description || '—'}</span> },
     { key: 'subject', label: 'Subject', render: (comp: any) => <span className="text-sm text-foreground">{comp.ref_subjects?.label || '—'}</span> },
+    { key: 'level', label: 'Level', render: (comp: any) => <span className="text-sm text-foreground">{comp.ref_levels?.label || '—'}</span> },
     {
       key: 'actions', label: '',
       render: (comp: any) => (
@@ -112,7 +115,7 @@ export default function CompetenciesPage() {
         emptyMessage="No competencies defined"
         emptyIcon={<Target size={32} className="text-muted-foreground/40" />}
         searchable
-        searchKeys={['name', 'description']}
+        searchKeys={['label', 'description']}
         loading={loading}
       />
 
@@ -131,9 +134,9 @@ export default function CompetenciesPage() {
       >
         <div className="space-y-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">Competency Name</label>
-            <input type="text" placeholder="e.g. Critical Thinking, Problem Solving..." value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} />
+            <label className="text-sm font-medium text-foreground">Competency Label</label>
+            <input type="text" placeholder="e.g. Critical Thinking, Problem Solving..." value={form.label}
+              onChange={(e) => setForm({ ...form, label: e.target.value })} className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-foreground">Description</label>
@@ -144,6 +147,9 @@ export default function CompetenciesPage() {
           <Select label="Related Subject (Optional)" placeholder="Select a subject..." value={form.subject_id}
             onValueChange={(v) => setForm({ ...form, subject_id: v })}
             options={subjects.map((s) => ({ value: s.id, label: s.label }))} />
+          <Select label="Related Level (Optional)" placeholder="Select a level..." value={form.level_id}
+            onValueChange={(v) => setForm({ ...form, level_id: v })}
+            options={levels.map((l) => ({ value: l.id, label: l.label }))} />
         </div>
       </Modal>
 
@@ -151,7 +157,7 @@ export default function CompetenciesPage() {
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}
         title="Delete Competency"
-        description={`Delete "${deleteItem?.name}"?`}
+        description={`Delete "${deleteItem?.label}"?`}
         footer={
           <>
             <Button variant="outline" onClick={() => setDeleteItem(null)}>Cancel</Button>

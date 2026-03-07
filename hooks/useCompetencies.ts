@@ -14,8 +14,8 @@ export function useCompetencies() {
     try {
       const { data } = await supabase
         .from('ref_competencies')
-        .select('*, ref_subjects (label)')
-        .order('name');
+        .select('*, ref_subjects (label), ref_levels (label)')
+        .order('label');
       setCompetencies(data || []);
     } catch {
       setCompetencies([]);
@@ -26,7 +26,7 @@ export function useCompetencies() {
 
   useEffect(() => { load(); }, [load]);
 
-  const create = async (data: { name: string; description?: string | null; subject_id?: string | null }) => {
+  const create = async (data: { label: string; description?: string | null; subject_id?: string | null; level_id?: string | null }) => {
     setSaving(true);
     try {
       await supabase.from('ref_competencies').insert(data);
@@ -39,7 +39,7 @@ export function useCompetencies() {
     }
   };
 
-  const update = async (id: string, data: { name?: string; description?: string | null; subject_id?: string | null }) => {
+  const update = async (id: string, data: { label?: string; description?: string | null; subject_id?: string | null; level_id?: string | null }) => {
     setSaving(true);
     try {
       await supabase.from('ref_competencies').update(data).eq('id', id);

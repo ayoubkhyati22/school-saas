@@ -7,7 +7,7 @@ import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/button';
 import FileUploader from '@/components/ui/FileUploader';
 import { LoadingPage, LoadingContent } from '@/components/ui/LoadingSpinner';
 import { ClipboardList, Calendar, ChevronRight, X } from 'lucide-react';

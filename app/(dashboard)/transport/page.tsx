@@ -7,7 +7,7 @@ import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/button';
 import Modal from '@/components/ui/Modal';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { Plus, Bus, Clock, Pencil, Trash2 } from 'lucide-react';

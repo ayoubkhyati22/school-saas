@@ -5,7 +5,7 @@ import { getCurrentProfile } from '@/lib/auth';
 import { Profile } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/button';
 import FileUploader from '@/components/ui/FileUploader';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { Save, User, School, Lock } from 'lucide-react';

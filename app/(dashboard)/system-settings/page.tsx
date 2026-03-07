@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/button';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { Save, Settings, Shield, Mail, Globe, Database, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';

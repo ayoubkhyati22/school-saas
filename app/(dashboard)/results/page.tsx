@@ -9,8 +9,8 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
-import Select from '@/components/ui/Select';
+import Button from '@/components/ui/button';
+import Select from '@/components/ui/select';
 import { LoadingPage, LoadingContent } from '@/components/ui/LoadingSpinner';
 import { Award, Save } from 'lucide-react';
 

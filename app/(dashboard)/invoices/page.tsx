@@ -7,7 +7,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/button';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { Wallet, CreditCard } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';

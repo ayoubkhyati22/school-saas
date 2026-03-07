@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getCurrentProfile } from '@/lib/auth';
-import { Profile } from '@/types/database';
+import { useState } from 'react';
+import { useProfile } from '@/hooks/useProfile';
+import { useLevels } from '@/hooks/useLevels';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
@@ -10,38 +10,19 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { Plus, Layers, Pencil, Trash2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+
+const inputClass = 'h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring';
 
 export default function LevelsPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [levels, setLevels] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile, loading: profileLoading } = useProfile();
+  const { levels, loading, saving, deleting, create, update, remove } = useLevels();
+
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({ cycle_name: '', level_name: '', order_index: '' });
 
-  const loadLevels = async () => {
-    const { data } = await supabase.from('ref_levels').select('*').order('order_index');
-    setLevels(data || []);
-  };
-
-  useEffect(() => {
-    async function loadData() {
-      const profileData = await getCurrentProfile();
-      setProfile(profileData);
-      if (profileData?.role === 'super_admin') {
-        try { await loadLevels(); } catch (e) { setLevels([]); }
-      }
-      setLoading(false);
-    }
-    loadData();
-  }, []);
-
-  if (loading || !profile) return <LoadingPage />;
-
+  if (profileLoading || !profile) return <LoadingPage />;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>
@@ -61,37 +42,18 @@ export default function LevelsPage() {
 
   const handleSubmit = async () => {
     if (!form.cycle_name || !form.level_name) return;
-    setSaving(true);
-    try {
-      const payload = { cycle_name: form.cycle_name, level_name: form.level_name, order_index: form.order_index ? Number(form.order_index) : null };
-      if (editItem) {
-        await supabase.from('ref_levels').update(payload).eq('id', editItem.id);
-      } else {
-        await supabase.from('ref_levels').insert(payload);
-      }
-      await loadLevels();
-      setShowModal(false);
-      setForm({ cycle_name: '', level_name: '', order_index: '' });
-    } catch (e) {
-    } finally {
-      setSaving(false);
-    }
+    const payload = { cycle_name: form.cycle_name, level_name: form.level_name, order_index: form.order_index ? Number(form.order_index) : null };
+    const ok = editItem
+      ? await update(editItem.id, payload)
+      : await create(payload);
+    if (ok) { setShowModal(false); setForm({ cycle_name: '', level_name: '', order_index: '' }); }
   };
 
   const handleDelete = async () => {
     if (!deleteItem) return;
-    setDeleting(true);
-    try {
-      await supabase.from('ref_levels').delete().eq('id', deleteItem.id);
-      setLevels((prev) => prev.filter((l) => l.id !== deleteItem.id));
-      setDeleteItem(null);
-    } catch (e) {
-    } finally {
-      setDeleting(false);
-    }
+    const ok = await remove(deleteItem.id);
+    if (ok) setDeleteItem(null);
   };
-
-  const inputClass = "h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring";
 
   const columns = [
     { key: 'cycle_name', label: 'Cycle', render: (level: any) => <span className="font-medium text-foreground">{level.cycle_name}</span> },
@@ -133,6 +95,7 @@ export default function LevelsPage() {
         emptyIcon={<Layers size={32} className="text-muted-foreground/40" />}
         searchable
         searchKeys={['cycle_name', 'level_name']}
+        loading={loading}
       />
 
       <Modal

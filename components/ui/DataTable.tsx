@@ -23,6 +23,7 @@ interface DataTableProps<T> {
   searchable?: boolean;
   searchKeys?: string[];
   pageSize?: number;
+  loading?: boolean;
 }
 
 export default function DataTable<T>({
@@ -35,6 +36,7 @@ export default function DataTable<T>({
   searchable = false,
   searchKeys = [],
   pageSize = 10,
+  loading = false,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,6 +56,25 @@ export default function DataTable<T>({
     setSearch(value);
     setCurrentPage(1);
   };
+
+  if (loading) {
+    return (
+      <div className="bg-card border border-border overflow-hidden">
+        <div className="divide-y divide-border">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="px-4 py-3.5 flex items-center gap-4 animate-pulse">
+              <div className="w-9 h-9 bg-muted flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-muted w-1/3" />
+                <div className="h-2.5 bg-muted w-1/5" />
+              </div>
+              <div className="h-5 bg-muted w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card border border-border overflow-hidden">

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCurrentProfile } from '@/lib/auth';
-import { Profile } from '@/types/database';
+import { useProfile } from '@/hooks/useProfile';
+import { useCompetencies } from '@/hooks/useCompetencies';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
@@ -13,43 +13,23 @@ import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { Plus, Target, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
+const inputClass = 'h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring';
+
 export default function CompetenciesPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [competencies, setCompetencies] = useState<any[]>([]);
+  const { profile, loading: profileLoading } = useProfile();
+  const { competencies, loading, saving, deleting, create, update, remove } = useCompetencies();
+
   const [subjects, setSubjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', subject_id: '' });
 
-  const loadCompetencies = async () => {
-    const { data } = await supabase.from('ref_competencies').select('*, ref_subjects (label)').order('name');
-    setCompetencies(data || []);
-  };
-
   useEffect(() => {
-    async function loadData() {
-      const profileData = await getCurrentProfile();
-      setProfile(profileData);
-      if (profileData?.role === 'super_admin') {
-        try {
-          const subjectsRes = await supabase.from('ref_subjects').select('id, label').order('label');
-          setSubjects(subjectsRes.data || []);
-          await loadCompetencies();
-        } catch (e) {
-          setCompetencies([]);
-        }
-      }
-      setLoading(false);
-    }
-    loadData();
+    supabase.from('ref_subjects').select('id, label').order('label').then(({ data }) => setSubjects(data || []));
   }, []);
 
-  if (loading || !profile) return <LoadingPage />;
-
+  if (profileLoading || !profile) return <LoadingPage />;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>
@@ -69,37 +49,18 @@ export default function CompetenciesPage() {
 
   const handleSubmit = async () => {
     if (!form.name) return;
-    setSaving(true);
-    try {
-      const payload = { name: form.name, description: form.description || null, subject_id: form.subject_id || null };
-      if (editItem) {
-        await supabase.from('ref_competencies').update(payload).eq('id', editItem.id);
-      } else {
-        await supabase.from('ref_competencies').insert(payload);
-      }
-      await loadCompetencies();
-      setShowModal(false);
-      setForm({ name: '', description: '', subject_id: '' });
-    } catch (e) {
-    } finally {
-      setSaving(false);
-    }
+    const payload = { name: form.name, description: form.description || null, subject_id: form.subject_id || null };
+    const ok = editItem
+      ? await update(editItem.id, payload)
+      : await create(payload);
+    if (ok) { setShowModal(false); setForm({ name: '', description: '', subject_id: '' }); }
   };
 
   const handleDelete = async () => {
     if (!deleteItem) return;
-    setDeleting(true);
-    try {
-      await supabase.from('ref_competencies').delete().eq('id', deleteItem.id);
-      setCompetencies((prev) => prev.filter((c) => c.id !== deleteItem.id));
-      setDeleteItem(null);
-    } catch (e) {
-    } finally {
-      setDeleting(false);
-    }
+    const ok = await remove(deleteItem.id);
+    if (ok) setDeleteItem(null);
   };
-
-  const inputClass = "h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring";
 
   const columns = [
     {
@@ -150,7 +111,8 @@ export default function CompetenciesPage() {
         emptyMessage="No competencies defined"
         emptyIcon={<Target size={32} className="text-muted-foreground/40" />}
         searchable
-        searchKeys={['name']}
+        searchKeys={['name', 'description']}
+        loading={loading}
       />
 
       <Modal

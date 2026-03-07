@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getCurrentProfile } from '@/lib/auth';
-import { Profile } from '@/types/database';
+import { useState } from 'react';
+import { useProfile } from '@/hooks/useProfile';
+import { useGlobalSubjects } from '@/hooks/useGlobalSubjects';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
@@ -10,38 +10,19 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { Plus, BookOpen, Pencil, Trash2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+
+const inputClass = 'h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring';
 
 export default function GlobalSubjectsPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile, loading: profileLoading } = useProfile();
+  const { subjects, loading, saving, deleting, create, update, remove } = useGlobalSubjects();
+
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({ label: '', description: '' });
 
-  const loadSubjects = async () => {
-    const { data } = await supabase.from('ref_subjects').select('*').order('label');
-    setSubjects(data || []);
-  };
-
-  useEffect(() => {
-    async function loadData() {
-      const profileData = await getCurrentProfile();
-      setProfile(profileData);
-      if (profileData?.role === 'super_admin') {
-        try { await loadSubjects(); } catch (e) { setSubjects([]); }
-      }
-      setLoading(false);
-    }
-    loadData();
-  }, []);
-
-  if (loading || !profile) return <LoadingPage />;
-
+  if (profileLoading || !profile) return <LoadingPage />;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>
@@ -53,40 +34,26 @@ export default function GlobalSubjectsPage() {
   }
 
   const openCreate = () => { setEditItem(null); setForm({ label: '', description: '' }); setShowModal(true); };
-  const openEdit = (subject: any) => { setEditItem(subject); setForm({ label: subject.label, description: subject.description || '' }); setShowModal(true); };
+  const openEdit = (subject: any) => {
+    setEditItem(subject);
+    setForm({ label: subject.label, description: subject.description || '' });
+    setShowModal(true);
+  };
 
   const handleSubmit = async () => {
     if (!form.label) return;
-    setSaving(true);
-    try {
-      if (editItem) {
-        await supabase.from('ref_subjects').update({ label: form.label, description: form.description || null }).eq('id', editItem.id);
-      } else {
-        await supabase.from('ref_subjects').insert({ label: form.label, description: form.description || null });
-      }
-      await loadSubjects();
-      setShowModal(false);
-      setForm({ label: '', description: '' });
-    } catch (e) {
-    } finally {
-      setSaving(false);
-    }
+    const payload = { label: form.label, description: form.description || null };
+    const ok = editItem
+      ? await update(editItem.id, payload)
+      : await create(payload);
+    if (ok) { setShowModal(false); setForm({ label: '', description: '' }); }
   };
 
   const handleDelete = async () => {
     if (!deleteItem) return;
-    setDeleting(true);
-    try {
-      await supabase.from('ref_subjects').delete().eq('id', deleteItem.id);
-      setSubjects((prev) => prev.filter((s) => s.id !== deleteItem.id));
-      setDeleteItem(null);
-    } catch (e) {
-    } finally {
-      setDeleting(false);
-    }
+    const ok = await remove(deleteItem.id);
+    if (ok) setDeleteItem(null);
   };
-
-  const inputClass = "h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring";
 
   const columns = [
     {
@@ -136,7 +103,8 @@ export default function GlobalSubjectsPage() {
         emptyMessage="No subjects in the catalog"
         emptyIcon={<BookOpen size={32} className="text-muted-foreground/40" />}
         searchable
-        searchKeys={['label']}
+        searchKeys={['label', 'description']}
+        loading={loading}
       />
 
       <Modal

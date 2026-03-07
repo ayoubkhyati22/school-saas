@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getCurrentProfile } from '@/lib/auth';
-import { Profile } from '@/types/database';
+import { useState } from 'react';
+import { useProfile } from '@/hooks/useProfile';
+import { useSchools } from '@/hooks/useSchools';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/ui/PageHeader';
 import DataTable from '@/components/ui/DataTable';
@@ -11,39 +11,29 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
-import { Plus, School, Pencil, Trash2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { Plus, School, Pencil, Trash2, BarChart2 } from 'lucide-react';
+
+const PLANS = [
+  { value: 'free', label: 'Free ($0/mo)' },
+  { value: 'basic', label: 'Basic ($29/mo)' },
+  { value: 'pro', label: 'Pro ($99/mo)' },
+  { value: 'enterprise', label: 'Enterprise ($299/mo)' },
+];
+
+const inputClass = 'h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring';
 
 export default function SchoolsPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [schools, setSchools] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile, loading: profileLoading } = useProfile();
+  const { schools, loading, saving, deleting, create, update, changePlan, remove } = useSchools();
+
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [planItem, setPlanItem] = useState<any>(null);
   const [form, setForm] = useState({ name: '', address: '', massar_id: '', subscription_plan: 'free' });
+  const [selectedPlan, setSelectedPlan] = useState('');
 
-  const loadSchools = async () => {
-    const { data } = await supabase.from('schools').select('*').order('created_at', { ascending: false });
-    setSchools(data || []);
-  };
-
-  useEffect(() => {
-    async function loadData() {
-      const profileData = await getCurrentProfile();
-      setProfile(profileData);
-      if (profileData?.role === 'super_admin') {
-        try { await loadSchools(); } catch (e) { setSchools([]); }
-      }
-      setLoading(false);
-    }
-    loadData();
-  }, []);
-
-  if (loading || !profile) return <LoadingPage />;
-
+  if (profileLoading || !profile) return <LoadingPage />;
   if (profile.role !== 'super_admin') {
     return (
       <DashboardLayout profile={profile}>
@@ -66,42 +56,38 @@ export default function SchoolsPage() {
     setShowModal(true);
   };
 
+  const openPlanChange = (school: any) => {
+    setPlanItem(school);
+    setSelectedPlan(school.subscription_plan || 'free');
+  };
+
   const handleSubmit = async () => {
     if (!form.name) return;
-    setSaving(true);
-    try {
-      if (editItem) {
-        await supabase.from('schools').update({ name: form.name, address: form.address || null, massar_id: form.massar_id || null, subscription_plan: form.subscription_plan }).eq('id', editItem.id);
-      } else {
-        await supabase.from('schools').insert({ name: form.name, address: form.address || null, massar_id: form.massar_id || null, subscription_plan: form.subscription_plan });
-      }
-      await loadSchools();
+    const payload = { name: form.name, address: form.address || undefined, massar_id: form.massar_id || undefined, subscription_plan: form.subscription_plan };
+    const ok = editItem
+      ? await update(editItem.id, payload)
+      : await create(payload);
+    if (ok) {
       setShowModal(false);
       setForm({ name: '', address: '', massar_id: '', subscription_plan: 'free' });
-    } catch (e) {
-    } finally {
-      setSaving(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deleteItem) return;
-    setDeleting(true);
-    try {
-      await supabase.from('schools').delete().eq('id', deleteItem.id);
-      setSchools((prev) => prev.filter((s) => s.id !== deleteItem.id));
-      setDeleteItem(null);
-    } catch (e) {
-    } finally {
-      setDeleting(false);
-    }
+    const ok = await remove(deleteItem.id);
+    if (ok) setDeleteItem(null);
+  };
+
+  const handlePlanChange = async () => {
+    if (!planItem) return;
+    const ok = await changePlan(planItem.id, selectedPlan);
+    if (ok) setPlanItem(null);
   };
 
   const planVariant = (plan: string): 'default' | 'info' | 'success' | 'warning' => {
-    if (plan === 'free') return 'default';
-    if (plan === 'basic') return 'info';
-    if (plan === 'pro') return 'success';
-    return 'warning';
+    const map: any = { free: 'default', basic: 'info', pro: 'success', enterprise: 'warning' };
+    return map[plan] || 'default';
   };
 
   const formatDate = (dateStr: string) => {
@@ -109,22 +95,22 @@ export default function SchoolsPage() {
     catch { return dateStr; }
   };
 
-  const inputClass = "h-9 w-full border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring";
-
   const columns = [
     {
-      key: 'name', label: 'School Name',
+      key: 'name', label: 'School',
       render: (school: any) => (
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-muted flex items-center justify-center flex-shrink-0">
             <School size={16} className="text-muted-foreground" />
           </div>
-          <span className="font-medium text-foreground">{school.name}</span>
+          <div>
+            <p className="font-medium text-foreground">{school.name}</p>
+            {school.massar_id && <p className="text-xs text-muted-foreground font-mono">{school.massar_id}</p>}
+          </div>
         </div>
       ),
     },
     { key: 'address', label: 'Address', render: (school: any) => <span className="text-sm text-muted-foreground">{school.address || '—'}</span> },
-    { key: 'massar_id', label: 'Massar ID', render: (school: any) => <span className="text-sm text-foreground font-mono">{school.massar_id || '—'}</span> },
     {
       key: 'subscription_plan', label: 'Plan',
       render: (school: any) => (
@@ -138,6 +124,9 @@ export default function SchoolsPage() {
       key: 'actions', label: '',
       render: (school: any) => (
         <div className="flex items-center gap-1 justify-end">
+          <Button variant="ghost" size="sm" title="Change Plan" onClick={(e) => { e.stopPropagation(); openPlanChange(school); }}>
+            <BarChart2 size={13} className="text-blue-500" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(school); }}>
             <Pencil size={13} />
           </Button>
@@ -169,9 +158,11 @@ export default function SchoolsPage() {
         emptyMessage="No schools found"
         emptyIcon={<School size={32} className="text-muted-foreground/40" />}
         searchable
-        searchKeys={['name', 'massar_id']}
+        searchKeys={['name', 'massar_id', 'address']}
+        loading={loading}
       />
 
+      {/* Create / Edit Modal */}
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
@@ -203,15 +194,40 @@ export default function SchoolsPage() {
           </div>
           <Select label="Subscription Plan" value={form.subscription_plan}
             onValueChange={(v) => setForm({ ...form, subscription_plan: v })}
-            options={[
-              { value: 'free', label: 'Free' },
-              { value: 'basic', label: 'Basic ($29/mo)' },
-              { value: 'pro', label: 'Pro ($99/mo)' },
-              { value: 'enterprise', label: 'Enterprise ($299/mo)' },
-            ]} />
+            options={PLANS} />
         </div>
       </Modal>
 
+      {/* Change Plan Modal */}
+      <Modal
+        open={!!planItem}
+        onClose={() => setPlanItem(null)}
+        title="Change Subscription Plan"
+        description={`Update the plan for "${planItem?.name}"`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setPlanItem(null)}>Cancel</Button>
+            <Button onClick={handlePlanChange} loading={saving}>Apply Plan</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {PLANS.map((plan) => (
+              <button
+                key={plan.value}
+                onClick={() => setSelectedPlan(plan.value)}
+                className={`p-3 border text-left transition-colors ${selectedPlan === plan.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+              >
+                <p className="text-sm font-semibold text-foreground capitalize">{plan.value}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{plan.label.split('(')[1]?.replace(')', '') || 'Free'}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Modal */}
       <Modal
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}

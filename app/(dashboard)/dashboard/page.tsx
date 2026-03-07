@@ -25,6 +25,9 @@ import {
   Area,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -32,6 +35,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { supabase } from '@/lib/supabase/client';
+import { useSuperAdminStats } from '@/hooks/useSuperAdminStats';
 
 const attendanceData = [
   { month: 'Sep', students: 220, attendance: 95 },
@@ -70,6 +74,7 @@ const upcomingEvents = [
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const superAdminStats = useSuperAdminStats();
   const [stats, setStats] = useState({
     students: 0,
     teachers: 0,
@@ -174,11 +179,12 @@ export default function DashboardPage() {
       ];
     }
     if (isSuperAdmin) {
+      const sa = superAdminStats.stats;
       return [
-        <StatCard key="schools" title="Total Schools" value={24} icon={School} color="blue" />,
-        <StatCard key="users" title="Total Users" value={1240} icon={Users} color="green" />,
-        <StatCard key="revenue" title="Monthly Revenue" value="$8,920" icon={DollarSign} color="amber" trend={{ value: 8, isPositive: true }} />,
-        <StatCard key="subs" title="Active Subscriptions" value={21} icon={TrendingUp} color="purple" />,
+        <StatCard key="schools" title="Total Schools" value={sa?.totalSchools ?? '…'} icon={School} color="blue" />,
+        <StatCard key="users" title="Total Users" value={sa?.totalUsers ?? '…'} icon={Users} color="green" />,
+        <StatCard key="revenue" title="Monthly Revenue" value={sa ? `$${sa.monthlyRevenue.toLocaleString()}` : '…'} icon={DollarSign} color="amber" />,
+        <StatCard key="subs" title="Paid Subscriptions" value={sa?.activePaidSubscriptions ?? '…'} icon={TrendingUp} color="purple" />,
       ];
     }
     if (isTeacher) {
@@ -224,7 +230,94 @@ export default function DashboardPage() {
         {getStatCards()}
       </div>
 
-      {(isAdmin || isSuperAdmin || isTeacher) && (
+      {isSuperAdmin && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Plan distribution pie */}
+          <div className="bg-card border border-border p-6">
+            <h2 className="text-sm font-semibold text-foreground mb-4">Plan Distribution</h2>
+            {superAdminStats.stats && (() => {
+              const { planCounts } = superAdminStats.stats;
+              const pieData = [
+                { name: 'Free', value: planCounts.free, color: '#94a3b8' },
+                { name: 'Basic', value: planCounts.basic, color: '#3b82f6' },
+                { name: 'Pro', value: planCounts.pro, color: '#22c55e' },
+                { name: 'Enterprise', value: planCounts.enterprise, color: '#f59e0b' },
+              ].filter((d) => d.value > 0);
+              return (
+                <>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <PieChart>
+                      <Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={60} strokeWidth={1}>
+                        {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 0 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-1.5 mt-2">
+                    {pieData.map((d) => (
+                      <div key={d.name} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2" style={{ backgroundColor: d.color }} />
+                          <span className="text-muted-foreground">{d.name}</span>
+                        </div>
+                        <span className="font-medium text-foreground">{d.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Recent schools */}
+          <div className="bg-card border border-border p-6">
+            <h2 className="text-sm font-semibold text-foreground mb-4">Recent Schools</h2>
+            <div className="space-y-3">
+              {superAdminStats.recentSchools.map((school: any) => (
+                <div key={school.id} className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground truncate">{school.name}</p>
+                  <span className="text-xs text-muted-foreground flex-shrink-0 capitalize">{school.subscription_plan}</span>
+                </div>
+              ))}
+              {superAdminStats.recentSchools.length === 0 && (
+                <p className="text-sm text-muted-foreground">No schools yet</p>
+              )}
+            </div>
+          </div>
+
+          {/* Platform stats breakdown */}
+          <div className="bg-card border border-border p-6">
+            <h2 className="text-sm font-semibold text-foreground mb-4">Users Breakdown</h2>
+            {superAdminStats.stats && (() => {
+              const s = superAdminStats.stats;
+              const rows = [
+                { label: 'Students', value: s.totalStudents, color: '#3b82f6' },
+                { label: 'Teachers', value: s.totalTeachers, color: '#22c55e' },
+                { label: 'Parents', value: s.totalParents, color: '#f59e0b' },
+                { label: 'School Admins', value: s.totalSchoolAdmins, color: '#8b5cf6' },
+              ];
+              const max = Math.max(...rows.map((r) => r.value), 1);
+              return (
+                <div className="space-y-3">
+                  {rows.map((row) => (
+                    <div key={row.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-muted-foreground">{row.label}</span>
+                        <span className="text-xs font-semibold text-foreground tabular-nums">{row.value}</span>
+                      </div>
+                      <div className="h-1.5 bg-muted overflow-hidden">
+                        <div className="h-full transition-all" style={{ width: `${(row.value / max) * 100}%`, backgroundColor: row.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {(isAdmin || isTeacher) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="bg-card border border-border p-6">
             <h2 className="text-sm font-semibold text-foreground mb-4">Student Enrollment Trend</h2>

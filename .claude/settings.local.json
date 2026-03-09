@@ -8,7 +8,9 @@
       "Bash(do:*)",
       "Bash(head:*)",
       "Bash(/c/Users/hp/Downloads/project-bolt-sb1-wcokdgm4/project/.env.local.example:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

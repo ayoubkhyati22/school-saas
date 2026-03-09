@@ -16,7 +16,7 @@ import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import {
   Plus, Mail, Phone, Users, Pencil, Trash2, Eye,
   BookOpen, FileText, CreditCard, Calendar, Camera,
-  GraduationCap, XCircle,
+  GraduationCap, XCircle, Download,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
@@ -47,9 +47,9 @@ export default function StudentsPage() {
 
   // 360° view modal
   const [viewItem, setViewItem] = useState<any>(null);
-  const [viewData, setViewData] = useState<{ exams: any[]; homework: any[]; invoices: any[] }>({ exams: [], homework: [], invoices: [] });
+  const [viewData, setViewData] = useState<{ exams: any[]; homework: any[]; invoices: any[]; parents: any[] }>({ exams: [], homework: [], invoices: [], parents: [] });
   const [viewLoading, setViewLoading] = useState(false);
-  const [viewTab, setViewTab] = useState<'overview' | 'exams' | 'homework' | 'finance'>('overview');
+  const [viewTab, setViewTab] = useState<'overview' | 'exams' | 'homework' | 'finance' | 'parents'>('overview');
 
   useEffect(() => {
     async function loadData() {
@@ -85,6 +85,27 @@ export default function StudentsPage() {
   const filteredStudents = classFilter
     ? students.filter((s) => s.classId === classFilter)
     : students;
+
+  // ── Export ─────────────────────────────────────────────────────────────────
+  const exportToExcel = async () => {
+    const { utils, writeFile } = await import('xlsx');
+    const rows = filteredStudents.map((s) => ({
+      'Full Name': s.full_name || '',
+      'Username': s.username || '',
+      'Email': s.email || '',
+      'Phone': s.phone_number || '',
+      'Class': s.className || '',
+      'Status': 'Active',
+      'Joined': s.created_at ? new Date(s.created_at).toLocaleDateString('en-GB') : '',
+    }));
+    const ws = utils.json_to_sheet(rows);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, 'Students');
+    const fileName = classFilter
+      ? `students_${classes.find((c) => c.id === classFilter)?.name || 'filtered'}.xlsx`
+      : 'students_all.xlsx';
+    writeFile(wb, fileName);
+  };
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const openCreate = () => {
@@ -189,7 +210,7 @@ export default function StudentsPage() {
     setViewTab('overview');
     setViewLoading(true);
     try {
-      const [examsRes, hwRes, invoicesRes] = await Promise.all([
+      const [examsRes, hwRes, invoicesRes, parentsRes] = await Promise.all([
         supabase
           .from('exam_results')
           .select('*, exams(title, exam_date, max_score, term)')
@@ -205,11 +226,28 @@ export default function StudentsPage() {
           .select('*')
           .eq('student_id', student.id)
           .order('due_date', { ascending: false }),
+        // Parents: students whose managed_by = parent.id — find parents that have this student
+        supabase
+          .from('profiles')
+          .select('id, full_name, email, phone_number, avatar_url')
+          .eq('role', 'parent')
+          .eq('school_id', student.school_id)
+          .in('id', student.managed_by ? [student.managed_by] : ['00000000-0000-0000-0000-000000000000']),
       ]);
+      // Also check reverse: parents who have this student as a child (child.managed_by = parent.id)
+      let allParents = parentsRes.data || [];
+      if (student.managed_by && allParents.length === 0) {
+        const { data: fallback } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, phone_number, avatar_url')
+          .eq('id', student.managed_by);
+        allParents = fallback || [];
+      }
       setViewData({
         exams: examsRes.data || [],
         homework: hwRes.data || [],
         invoices: invoicesRes.data || [],
+        parents: allParents,
       });
     } finally {
       setViewLoading(false);
@@ -327,6 +365,7 @@ export default function StudentsPage() {
 
   const VIEW_TABS: { id: typeof viewTab; label: string; icon: any }[] = [
     { id: 'overview', label: 'Overview', icon: GraduationCap },
+    { id: 'parents', label: `Parents (${viewData.parents.length})`, icon: Users },
     { id: 'exams', label: `Exams (${viewData.exams.length})`, icon: BookOpen },
     { id: 'homework', label: `Homework (${viewData.homework.length})`, icon: FileText },
     { id: 'finance', label: `Finance (${viewData.invoices.length})`, icon: CreditCard },
@@ -338,12 +377,18 @@ export default function StudentsPage() {
         title="Students"
         description="Manage and view students enrolled in your school"
         action={
-          canManage ? (
-            <Button onClick={openCreate}>
-              <Plus size={15} className="mr-2" />
-              Add Student
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={exportToExcel} disabled={filteredStudents.length === 0}>
+              <Download size={15} className="mr-2" />
+              Export Excel
             </Button>
-          ) : undefined
+            {canManage && (
+              <Button onClick={openCreate}>
+                <Plus size={15} className="mr-2" />
+                Add Student
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -534,9 +579,10 @@ export default function StudentsPage() {
         onClose={() => setViewItem(null)}
         title="Student Profile"
         description="Complete student overview"
+        size="xl"
       >
         {viewItem && (
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             {/* Header */}
             <div className="flex items-center gap-4 p-4 bg-muted/30 border border-border">
               {viewItem.avatar_url ? (
@@ -573,14 +619,14 @@ export default function StudentsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-0 border-b border-border -mb-1">
+            <div className="flex border-b border-border overflow-x-auto">
               {VIEW_TABS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setViewTab(id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                     viewTab === id
-                      ? 'text-foreground border-b-2 border-primary -mb-px'
+                      ? 'text-foreground border-b-2 border-primary mb-[-1px]'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -595,7 +641,7 @@ export default function StudentsPage() {
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent animate-spin" />
               </div>
             ) : (
-              <div className="min-h-[200px]">
+              <div className="min-h-[180px] pt-3">
                 {/* Overview tab */}
                 {viewTab === 'overview' && (
                   <div className="grid grid-cols-2 gap-3">
@@ -604,6 +650,7 @@ export default function StudentsPage() {
                       { label: 'Average Score', value: avgScore ? `${avgScore}` : '—', icon: GraduationCap },
                       { label: 'HW Submitted', value: viewData.homework.length, icon: FileText },
                       { label: 'Amount Paid', value: `${totalPaid.toLocaleString()} / ${totalInvoiced.toLocaleString()}`, icon: CreditCard },
+                      { label: 'Parents Linked', value: viewData.parents.length, icon: Users },
                     ].map(({ label, value, icon: Icon }) => (
                       <div key={label} className="bg-muted/30 border border-border p-3 flex items-center gap-3">
                         <Icon size={16} className="text-muted-foreground flex-shrink-0" />
@@ -613,6 +660,64 @@ export default function StudentsPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Parents tab */}
+                {viewTab === 'parents' && (
+                  <div className="space-y-3">
+                    {viewData.parents.length === 0 ? (
+                      <div className="py-10 flex flex-col items-center gap-2 text-muted-foreground">
+                        <Users size={28} className="opacity-30" />
+                        <p className="text-sm">No parent linked to this student.</p>
+                      </div>
+                    ) : (
+                      viewData.parents.map((parent: any) => (
+                        <div key={parent.id} className="border border-border bg-muted/20 p-4">
+                          <div className="flex items-center gap-3">
+                            {parent.avatar_url ? (
+                              <img src={parent.avatar_url} alt={parent.full_name} className="w-11 h-11 object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="w-11 h-11 bg-muted flex items-center justify-center flex-shrink-0">
+                                <span className="text-lg font-bold text-foreground">{parent.full_name?.charAt(0)?.toUpperCase()}</span>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground text-sm">{parent.full_name}</p>
+                              {parent.email && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Mail size={11} /> {parent.email}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {parent.phone_number ? (
+                            <div className="mt-3 flex items-center gap-2">
+                              <a
+                                href={`tel:${parent.phone_number}`}
+                                className="flex-1 flex items-center justify-center gap-2 h-9 bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                              >
+                                <Phone size={14} />
+                                Call — {parent.phone_number}
+                              </a>
+                              {parent.email && (
+                                <a
+                                  href={`mailto:${parent.email}`}
+                                  className="flex items-center justify-center gap-2 h-9 px-4 border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors"
+                                >
+                                  <Mail size={14} />
+                                  Email
+                                </a>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
+                              <Phone size={11} /> No phone number registered
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
 

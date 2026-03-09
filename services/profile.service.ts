@@ -100,12 +100,16 @@ export async function getStudentsWithClass(schoolId: string) {
     .select('student_id, classes(id, name)')
     .in('student_id', students.map((s) => s.id));
 
-  const enrollMap: Record<string, string> = {};
+  const enrollMap: Record<string, { name: string; id: string }> = {};
   (enrollData || []).forEach((e: any) => {
-    if (e.classes?.name) enrollMap[e.student_id] = e.classes.name;
+    if (e.classes?.name) enrollMap[e.student_id] = { name: e.classes.name, id: e.classes.id };
   });
 
-  return students.map((s) => ({ ...s, className: enrollMap[s.id] || null }));
+  return students.map((s) => ({
+    ...s,
+    className: enrollMap[s.id]?.name || null,
+    classId: enrollMap[s.id]?.id || null,
+  }));
 }
 
 export async function getTeachersWithSubjects(schoolId: string) {
